@@ -1,0 +1,54 @@
+# Strand 示例配置 — 复制到 ~/.strand/config.toml
+# 或执行: strand config init
+#
+# 优先级: CLI flag > 环境变量 / .env > 本文件 > 默认值
+# 密钥请放在同目录 .env，这里用 ${VAR} 引用。
+
+[data]
+dir = "~/.strand"
+
+[api]
+enabled = true
+host = "127.0.0.1"
+port = 8080
+mode = "release"          # debug | release | test（也可用 GIN_MODE / STRAND_GIN_MODE）
+token = "${STRAND_API_TOKEN}"
+
+[database]
+type = "sqlite"
+path = "data.db"
+
+[runtime]
+language = "zh"
+log_level = "info"
+experience_improvement = true
+auto_start_traders = true
+
+[trading]
+enabled = true
+
+# 竞赛公平规则也可在 UI / API 调整（见 GET|PUT /api/competition/rules）
+# reference_initial_usd = 1000
+# scoring = "pnl_pct"          # 或 normalized_initial
+# start_at = "2026-01-01T00:00:00Z"
+# end_at = "2026-12-31T23:59:59Z"
+
+[market]
+# alpaca_api_key = "${ALPACA_API_KEY}"
+# alpaca_secret_key = "${ALPACA_SECRET_KEY}"
+# twelve_data_key = "${TWELVE_DATA_KEY}"
+
+# 取消注释以接入消息通道：
+# [[projects]]
+# name = "default"
+# work_dir = "~/.strand/workspace/default"
+# language = "zh"
+#
+#   [projects.agent]
+#   type = "codex"
+#   model = ""
+#
+#   [[projects.platforms]]
+#   type = "weixin"
+#   token = "${WEIXIN_TOKEN}"
+#   allow_from = ""

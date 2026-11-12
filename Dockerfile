@@ -1,0 +1,50 @@
+# Default image = Strand API (Go).
+# For the full stack (API + web console), use:
+#   docker compose up --build
+#
+# Build only the API:
+#   docker build -t strand-api -f Dockerfile .
+
+FROM golang:1.26-bookworm AS build
+WORKDIR /src
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends gcc libc6-dev libsqlite3-dev \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
+COPY pkg/ ./pkg/
+
+ARG VERSION=0.1.0
+RUN CGO_ENABLED=1 GOOS=linux go build \
+  -ldflags "-s -w -X main.version=${VERSION}" \
+  -o /out/strand \
+  ./cmd/strand
+
+FROM debian:bookworm-slim
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates tzdata libsqlite3-0 curl \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /out/strand /usr/local/bin/strand
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh \
+  && useradd --create-home --shell /bin/bash strand \
+  && mkdir -p /data \
+  && chown -R strand:strand /data
+
+USER strand
+WORKDIR /data
+ENV STRAND_DATA_DIR=/data \
+    STRAND_CONFIG=/data/config.toml \
+    STRAND_API_HOST=0.0.0.0 \
+    STRAND_API_PORT=8080
+
+EXPOSE 8080
+VOLUME ["/data"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["start"]

@@ -1,0 +1,52 @@
+# Strand full stack: API (:8080) + web console (:3000 → nginx)
+#
+#   cp .env.example .env   # optional; first boot also runs `strand config init`
+#   docker compose up --build
+#
+# Open http://127.0.0.1:3000  (UI) — /api is proxied to the API service.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+      args:
+        VERSION: ${STRAND_VERSION:-0.1.0}
+    image: strand-api:local
+    container_name: strand-api
+    restart: unless-stopped
+    environment:
+      STRAND_DATA_DIR: /data
+      STRAND_CONFIG: /data/config.toml
+      STRAND_API_HOST: "0.0.0.0"
+      STRAND_API_PORT: "8080"
+      # Optional: set in .env and uncomment
+      # JWT_SECRET: ${JWT_SECRET:-}
+      # STRAND_API_TOKEN: ${STRAND_API_TOKEN:-}
+      # HTTPS_PROXY: ${HTTPS_PROXY:-}
+      # HTTP_PROXY: ${HTTP_PROXY:-}
+    volumes:
+      - strand-data:/data
+    ports:
+      - "${STRAND_API_PUBLISH:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/api/config"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    image: strand-web:local
+    container_name: strand-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${STRAND_WEB_PUBLISH:-3000}:80"
+
+volumes:
+  strand-data:

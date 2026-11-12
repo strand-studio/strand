@@ -1,0 +1,56 @@
+# VCS / CI
+.git
+.github
+.gitattributes
+
+# Docs & meta (not needed in image build context)
+*.md
+!README.md
+docs/
+changelogs/
+assets/
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md
+DISCLAIMER.md
+CHANGELOG.md
+LICENSE
+
+# IDE / local AI
+.idea
+.vscode
+.cursor
+.claude
+.agents
+.gstack
+
+# Secrets & runtime
+.env
+.env.*
+!.env.example
+data/
+decision_logs/
+secrets/
+*.db
+*.sqlite
+*.log
+config.toml
+config.json
+
+# Build artifacts
+/strand
+/strand-server
+*.exe
+*.test
+*.out
+web/node_modules/
+web/dist/
+web/coverage/
+node_modules/
+.gocache/
+tmp/
+temp/
+*.tmp
+
+# Docker itself (avoid recursive context noise)
+docker-compose.override.yml

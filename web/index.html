@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/icons/strand.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Strand — AI Trading Terminal</title>
+    <script>
+      ;(function () {
+        try {
+          var mode = localStorage.getItem('strand.theme') || 'system'
+          var dark =
+            mode === 'dark' ||
+            (mode !== 'light' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          var theme = dark ? 'dark' : 'light'
+          document.documentElement.setAttribute('data-theme', theme)
+          document.documentElement.classList.toggle('dark', dark)
+          document.documentElement.style.colorScheme = theme
+          var lang = localStorage.getItem('language')
+          if (lang === 'zh' || lang === 'en' || lang === 'id') {
+            document.documentElement.lang =
+              lang === 'zh' ? 'zh-CN' : lang === 'id' ? 'id' : 'en'
+          }
+        } catch (e) {}
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
