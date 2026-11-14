@@ -547,7 +547,7 @@ func (p *Platform) SetLifecycleHandler(h core.PlatformLifecycleHandler) {
 // OnPlatformReady as the signal that the platform is actually usable.
 //
 // Before this change Start returned the first session.Open() error directly,
-// which meant a transient proxy/network blip during cc-connect startup
+// which meant a transient proxy/network blip during strand startup
 // permanently took Discord offline until manual restart (release-gate
 // 2026-06-14: "discord: open gateway: ... EOF" with no retry).
 func (p *Platform) Start(handler core.MessageHandler) error {

@@ -11,6 +11,8 @@ import {
   createSeriesMarkers,
 } from 'lightweight-charts'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useTheme } from '../../contexts/ThemeContext'
+import { chartSurfaceColors } from '../../lib/themeColors'
 import { httpClient } from '../../lib/httpClient'
 import { t } from '../../i18n/translations'
 import {
@@ -109,6 +111,7 @@ export function AdvancedChart({
 }: AdvancedChartProps) {
   void _onSymbolChange // Prevent unused warning
   const { language } = useLanguage()
+  const { resolvedTheme } = useTheme()
   const quoteUnit = getQuoteUnit(exchange)
   const baseUnit = getBaseUnit(exchange, symbol, language)
   const chartContainerRef = useRef<HTMLDivElement>(null)
@@ -144,7 +147,7 @@ export function AdvancedChart({
 
   // Indicator configuration
   const [indicators, setIndicators] = useState<IndicatorConfig[]>([
-    { id: 'volume', name: 'Volume', enabled: true, color: '#295be8' },
+    { id: 'volume', name: 'Volume', enabled: true, color: 'var(--strand-gold)' },
     {
       id: 'ma5',
       name: 'MA5',
@@ -163,7 +166,7 @@ export function AdvancedChart({
       id: 'ma20',
       name: 'MA20',
       enabled: false,
-      color: '#295be8',
+      color: 'var(--strand-gold)',
       params: { period: 20 },
     },
     {
@@ -461,22 +464,23 @@ export function AdvancedChart({
   useEffect(() => {
     if (!chartContainerRef.current) return
 
+    const surface = chartSurfaceColors()
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth || 800,
       height: chartContainerRef.current.clientHeight || height,
       layout: {
-        background: { color: '#f6f8fc' },
-        textColor: '#192434',
+        background: { color: surface.background },
+        textColor: surface.text,
         fontSize: 12,
       },
       grid: {
         vertLines: {
-          color: 'rgba(25,36,52, 0.08)',
+          color: surface.grid,
           style: 1,
           visible: true,
         },
         horzLines: {
-          color: 'rgba(25,36,52, 0.08)',
+          color: surface.grid,
           style: 1,
           visible: true,
         },
@@ -487,17 +491,17 @@ export function AdvancedChart({
           color: 'rgba(41,91,232, 0.5)',
           width: 1,
           style: 2,
-          labelBackgroundColor: '#295be8',
+          labelBackgroundColor: surface.accent,
         },
         horzLine: {
           color: 'rgba(41,91,232, 0.5)',
           width: 1,
           style: 2,
-          labelBackgroundColor: '#295be8',
+          labelBackgroundColor: surface.accent,
         },
       },
       rightPriceScale: {
-        borderColor: 'rgba(25,36,52, 0.14)',
+        borderColor: surface.border,
         scaleMargins: {
           top: 0.1,
           bottom: 0.25,
@@ -506,7 +510,7 @@ export function AdvancedChart({
         entireTextOnly: false,
       },
       timeScale: {
-        borderColor: 'rgba(25,36,52, 0.14)',
+        borderColor: surface.border,
         timeVisible: true,
         secondsVisible: false,
         borderVisible: true,
@@ -612,7 +616,7 @@ export function AdvancedChart({
       resizeObserver.disconnect()
       chart.remove()
     }
-  }, []) // Chart is created once, ResizeObserver handles dimension changes
+  }, [resolvedTheme, height]) // Recreate when theme changes so canvas colors resolve
 
   // Load data and indicators
   useEffect(() => {
@@ -950,7 +954,7 @@ export function AdvancedChart({
             const isLimit = order.type === 'LIMIT'
 
             // Set price line style
-            let lineColor = '#295be8' // Default vermilion
+            let lineColor = 'var(--strand-gold)' // Default vermilion
             const lineStyle = 2 // dashed
             let title = ''
 
@@ -961,7 +965,7 @@ export function AdvancedChart({
               lineColor = '#2E8B57' // green - take profit
               title = `TP ${order.quantity}`
             } else if (isLimit) {
-              lineColor = '#295be8' // vermilion - limit order
+              lineColor = 'var(--strand-gold)' // vermilion - limit order
               title = `Limit ${order.side} ${order.quantity}`
             } else {
               title = `${order.type} ${order.quantity}`
@@ -1107,10 +1111,10 @@ export function AdvancedChart({
     <div
       className="relative shadow-xl"
       style={{
-        background: '#f6f8fc',
+        background: 'var(--background)',
         borderRadius: '12px',
         overflow: 'hidden',
-        border: '1px solid rgba(25,36,52, 0.14)',
+        border: '1px solid var(--panel-border)',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
@@ -1120,8 +1124,8 @@ export function AdvancedChart({
       <div
         className="flex items-center justify-between px-4 py-2"
         style={{
-          borderBottom: '1px solid rgba(25,36,52, 0.14)',
-          background: '#ffffff',
+          borderBottom: '1px solid var(--panel-border)',
+          background: 'var(--panel-bg)',
           flexShrink: 0,
         }}
       >
@@ -1137,7 +1141,7 @@ export function AdvancedChart({
               className="text-[10px] px-1.5 py-0.5 rounded-sm font-medium uppercase"
               style={{
                 background: 'rgba(41,91,232, 0.1)',
-                color: '#295be8',
+                color: 'var(--strand-gold)',
               }}
             >
               {exchange?.toUpperCase()}
@@ -1146,7 +1150,7 @@ export function AdvancedChart({
 
           {/* Price Display */}
           {marketStats && (
-            <div className="flex items-center gap-3 pl-3 border-l border-[rgba(25,36,52,0.14)]">
+            <div className="flex items-center gap-3 pl-3 border-l border-strand-border">
               <span
                 className="text-base font-bold tabular-nums"
                 style={{
@@ -1214,7 +1218,7 @@ export function AdvancedChart({
               background: showIndicatorPanel
                 ? 'rgba(41,91,232, 0.12)'
                 : 'transparent',
-              color: showIndicatorPanel ? '#295be8' : '#707e92',
+              color: showIndicatorPanel ? 'var(--strand-gold)' : 'var(--text-tertiary)',
             }}
           >
             <Settings className="w-3 h-3" />
@@ -1228,7 +1232,7 @@ export function AdvancedChart({
               background: showOrderMarkers
                 ? 'rgba(46, 139, 87, 0.15)'
                 : 'transparent',
-              color: showOrderMarkers ? '#2E8B57' : '#707e92',
+              color: showOrderMarkers ? '#2E8B57' : 'var(--text-tertiary)',
             }}
             title={t('advancedChart.orderMarkers', language)}
           >
@@ -1242,7 +1246,7 @@ export function AdvancedChart({
         <div
           className="absolute top-16 right-4 z-10 rounded-lg shadow-2xl backdrop-blur-xs"
           style={{
-            background: '#ffffff',
+            background: 'var(--panel-bg)',
             border: '1px solid rgba(41,91,232, 0.2)',
             maxHeight: '500px',
             minWidth: '280px',
@@ -1252,7 +1256,7 @@ export function AdvancedChart({
           {/* Title bar */}
           <div
             className="flex items-center justify-between px-4 py-3 border-b"
-            style={{ borderColor: 'rgba(25,36,52, 0.14)' }}
+            style={{ borderColor: 'var(--panel-border)' }}
           >
             <div className="flex items-center gap-2">
               <BarChart2 className="w-4 h-4 text-strand-gold" />
@@ -1273,18 +1277,18 @@ export function AdvancedChart({
             {indicators.map((indicator) => (
               <label
                 key={indicator.id}
-                className="flex items-center gap-3 p-2.5 rounded-md hover:bg-black/5 cursor-pointer transition-all group"
+                className="flex items-center gap-3 p-2.5 rounded-md hover:bg-strand-text/5 cursor-pointer transition-all group"
               >
                 <div className="relative">
                   <input
                     type="checkbox"
                     checked={indicator.enabled}
                     onChange={() => toggleIndicator(indicator.id)}
-                    className="w-4 h-4 rounded-sm border-[rgba(25,36,52,0.3)] text-strand-gold focus:ring-2 focus:ring-strand-gold/50"
+                    className="w-4 h-4 rounded-sm border-strand-border text-strand-gold focus:ring-2 focus:ring-strand-gold/50"
                   />
                 </div>
                 <div
-                  className="w-8 h-3 rounded-xs border border-[rgba(25,36,52,0.14)]"
+                  className="w-8 h-3 rounded-xs border border-strand-border"
                   style={{ backgroundColor: indicator.color }}
                 ></div>
                 <span className="text-sm text-strand-text-muted group-hover:text-strand-text transition-colors flex-1">
@@ -1300,7 +1304,7 @@ export function AdvancedChart({
           {/* Bottom hint */}
           <div
             className="px-4 py-2 text-xs text-strand-text-muted border-t"
-            style={{ borderColor: 'rgba(25,36,52, 0.14)' }}
+            style={{ borderColor: 'var(--panel-border)' }}
           >
             {t('advancedChart.clickToToggle', language)}
           </div>
@@ -1326,7 +1330,7 @@ export function AdvancedChart({
               background: 'rgba(255,255,255, 0.95)',
               border: '1px solid rgba(41,91,232, 0.3)',
               borderRadius: '6px',
-              color: '#192434',
+              color: 'var(--text-primary)',
               fontSize: '12px',
               fontFamily: 'monospace',
               pointerEvents: 'none',
@@ -1338,7 +1342,7 @@ export function AdvancedChart({
             <div
               style={{
                 marginBottom: '6px',
-                color: '#295be8',
+                color: 'var(--strand-gold)',
                 fontWeight: 'bold',
                 fontSize: '11px',
               }}
@@ -1361,22 +1365,22 @@ export function AdvancedChart({
                 fontSize: '11px',
               }}
             >
-              <span style={{ color: '#707e92' }}>O:</span>
-              <span style={{ color: '#192434', fontWeight: '500' }}>
+              <span style={{ color: 'var(--text-tertiary)' }}>O:</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>
                 {tooltipData.open?.toFixed(2)}
               </span>
 
-              <span style={{ color: '#707e92' }}>H:</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>H:</span>
               <span style={{ color: '#2E8B57', fontWeight: '500' }}>
                 {tooltipData.high?.toFixed(2)}
               </span>
 
-              <span style={{ color: '#707e92' }}>L:</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>L:</span>
               <span style={{ color: '#D6433A', fontWeight: '500' }}>
                 {tooltipData.low?.toFixed(2)}
               </span>
 
-              <span style={{ color: '#707e92' }}>C:</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>C:</span>
               <span
                 style={{
                   color:
@@ -1391,8 +1395,8 @@ export function AdvancedChart({
 
               {tooltipData.volume > 0 && baseUnit && (
                 <>
-                  <span style={{ color: '#707e92' }}>V({baseUnit}):</span>
-                  <span style={{ color: '#295be8', fontWeight: '500' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>V({baseUnit}):</span>
+                  <span style={{ color: 'var(--strand-gold)', fontWeight: '500' }}>
                     {formatVolume(tooltipData.volume)}
                   </span>
                 </>
@@ -1400,8 +1404,8 @@ export function AdvancedChart({
 
               {tooltipData.quoteVolume > 0 && quoteUnit && (
                 <>
-                  <span style={{ color: '#707e92' }}>V({quoteUnit}):</span>
-                  <span style={{ color: '#295be8', fontWeight: '500' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>V({quoteUnit}):</span>
+                  <span style={{ color: 'var(--strand-gold)', fontWeight: '500' }}>
                     {formatVolume(tooltipData.quoteVolume)}
                   </span>
                 </>

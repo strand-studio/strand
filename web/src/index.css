@@ -15,6 +15,7 @@
   --color-strand-text: #192434;
   --color-strand-text-main: #192434;
   --color-strand-text-muted: #707e92;
+  --color-strand-border: rgba(25, 36, 52, 0.14);
 
   --color-strand-success: #2e8b57;
   --color-strand-danger: #d6433a;
@@ -193,6 +194,7 @@ html {
   --color-strand-text: #e8edf5;
   --color-strand-text-main: #e8edf5;
   --color-strand-text-muted: #93a0b5;
+  --color-strand-border: rgba(232, 237, 245, 0.12);
 
   --color-strand-success: #3cb371;
   --color-strand-danger: #ef6b63;

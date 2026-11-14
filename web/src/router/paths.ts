@@ -34,6 +34,11 @@ export const ROUTES = {
   resetPassword: '/reset-password',
   strategyMarket: '/strategy-market',
 
+  /** Settings → Resources hub (configure / test / scene defaults). */
+  resources: '/settings?tab=resources',
+  /** Platform bindings live under Resources (legacy alias). */
+  channels: '/settings?tab=resources',
+
   /** @deprecated aliases → canonical paths above */
   frontier: '/frontier',
   dashboard: '/portfolio',
@@ -85,6 +90,18 @@ export function buildDashboardPath(traderSlug?: string): string {
   }
 
   return `${ROUTES.portfolio}?trader=${encodeURIComponent(traderSlug)}`
+}
+
+/** Deep-link into Resources to add/edit a model or exchange. */
+export function buildResourcesConfigurePath(opts: {
+  kind: 'model' | 'exchange'
+  id?: string | null
+  type?: string | null
+}): string {
+  const q = new URLSearchParams({ tab: 'resources', configure: opts.kind })
+  if (opts.id) q.set('id', opts.id)
+  if (opts.type) q.set('type', opts.type)
+  return `${ROUTES.settings}?${q.toString()}`
 }
 
 /** Markets detail: /markets/:exchange/:symbol */

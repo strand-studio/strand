@@ -16,7 +16,7 @@ function InlineText({ text }: { text: string }) {
         part.startsWith('`') && part.endsWith('`') ? (
           <code
             key={i}
-            className="rounded-sm bg-strand-bg-deeper border border-[rgba(25,36,52,0.10)] px-1.5 py-0.5 font-mono text-[0.85em] text-strand-text break-all"
+            className="rounded-sm bg-strand-bg-deeper border border-strand-border/70 px-1.5 py-0.5 font-mono text-[0.85em] text-strand-text break-all"
           >
             {part.slice(1, -1)}
           </code>
@@ -146,7 +146,7 @@ export function FAQContent({
             </span>
           </div>
 
-          <div className="divide-y divide-[rgba(25,36,52,0.10)]">
+          <div className="divide-y divide-strand-border">
             {category.items.map((item) => (
               <section
                 key={item.id}

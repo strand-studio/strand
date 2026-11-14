@@ -8,7 +8,7 @@ var Flags = CliFlags{
 		Flag: &cli.StringFlag{
 			Name:    "config",
 			Aliases: []string{"c"},
-			Usage:   "配置文件路径（默认: $STRAND_CONFIG 或 ~/.strand/config.toml）",
+			Usage:   "Path to config file (default: $STRAND_CONFIG or ~/.strand/config.toml)",
 			EnvVars: []string{"STRAND_CONFIG"},
 		},
 	},

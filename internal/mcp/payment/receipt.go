@@ -52,7 +52,7 @@ func receiptRPC() string {
 	if s := os.Getenv("STRAND_X402_RECEIPT_RPC_URL"); s != "" {
 		return s
 	}
-	// Legacy env name from the NOFX fork.
+	// Legacy env name from older builds.
 	if s := os.Getenv("NOFX_X402_RECEIPT_RPC_URL"); s != "" {
 		return s
 	}

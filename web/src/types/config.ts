@@ -9,6 +9,11 @@ export interface AIModel {
   customModelName?: string
   walletAddress?: string
   balanceUsdc?: string
+  last_test_ok?: boolean
+  tested?: boolean
+  latency_ms?: number
+  last_error?: string
+  last_test_at?: string
 }
 
 export interface TelegramConfig {
@@ -52,6 +57,11 @@ export interface Exchange {
   lighterPrivateKey?: string
   lighterApiKeyPrivateKey?: string
   lighterApiKeyIndex?: number
+  last_test_ok?: boolean
+  tested?: boolean
+  latency_ms?: number
+  last_error?: string
+  last_test_at?: string
 }
 
 export type ExchangeAccountStatus =

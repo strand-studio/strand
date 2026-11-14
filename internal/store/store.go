@@ -33,6 +33,8 @@ type Store struct {
 	chatSessions         *ChatSessionStore
 	notifyChannels       *NotifyChannelStore
 	competitionSettings  *CompetitionSettingsStore
+	messaging            *MessagingStore
+	resources            *ResourceStore
 
 	mu sync.RWMutex
 }
@@ -168,6 +170,12 @@ func (s *Store) initTables() error {
 	}
 	if err := s.CompetitionSettings().initTables(); err != nil {
 		return fmt.Errorf("failed to initialize competition settings tables: %w", err)
+	}
+	if err := s.Messaging().initTables(); err != nil {
+		return fmt.Errorf("failed to initialize messaging tables: %w", err)
+	}
+	if err := s.Resources().initTables(); err != nil {
+		return fmt.Errorf("failed to initialize resource health tables: %w", err)
 	}
 	return nil
 }
@@ -339,6 +347,26 @@ func (s *Store) CompetitionSettings() *CompetitionSettingsStore {
 		s.competitionSettings = NewCompetitionSettingsStore(s.gdb)
 	}
 	return s.competitionSettings
+}
+
+// Messaging stores social platform bindings (chat + alerts).
+func (s *Store) Messaging() *MessagingStore {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.messaging == nil {
+		s.messaging = NewMessagingStore(s.gdb)
+	}
+	return s.messaging
+}
+
+// Resources stores health probes and scene defaults for model/agent/platform/exchange.
+func (s *Store) Resources() *ResourceStore {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.resources == nil {
+		s.resources = NewResourceStore(s.gdb)
+	}
+	return s.resources
 }
 
 // Close closes database connection

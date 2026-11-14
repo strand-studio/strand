@@ -158,7 +158,7 @@ func New(opts map[string]any) (core.Platform, error) {
 	deviceUuid, _ := opts["device_uuid"].(string)
 	deviceName, _ := opts["device_name"].(string)
 	if deviceName == "" {
-		deviceName = "cc-connect"
+		deviceName = "Strand"
 	}
 
 	baseURL := defaultWSURL
@@ -276,7 +276,7 @@ func (p *Platform) SendImage(ctx context.Context, replyCtx any, img core.ImageAt
 	return p.sendText(rc.ChatID, notice, rc)
 }
 
-// saveAttachment writes data to ~/.cc-connect/attachments/<name> and returns
+// saveAttachment writes data to ~/.strand/attachments/<name> and returns
 // the absolute path. The filename is sanitized to a basename to prevent path
 // traversal.
 func (p *Platform) saveAttachment(name string, data []byte) (string, error) {
@@ -284,7 +284,7 @@ func (p *Platform) saveAttachment(name string, data []byte) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve home dir: %w", err)
 	}
-	dir := filepath.Join(home, ".cc-connect", "attachments")
+	dir := filepath.Join(home, ".strand", "attachments")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("mkdir: %w", err)
 	}
@@ -857,7 +857,7 @@ func isWindows() bool {
 	return runtime.GOOS == "windows"
 }
 
-// saveToConfig saves the encrypted token to the cc-connect config file.
+// saveToConfig saves the encrypted token to the strand config file.
 // It validates the file as TOML first, then performs a surgical line-level
 // update inside the wps-agentspace platform options block so comments and
 // field order outside that block are preserved.
@@ -954,12 +954,12 @@ func quoteTomlBasicString(s string) string {
 	return s
 }
 
-// findConfigFile finds the cc-connect config file. It prefers the path cc-connect
+// findConfigFile finds the strand config file. It prefers the path strand
 // actually loaded (set by main via config.ConfigPath, so --config flags and
 // non-default locations just work), falls back to an explicit CC_CONNECT_CONFIG
 // env override, then to the default discovery locations.
 func findConfigFile() string {
-	// Prefer the path cc-connect actually loaded at startup.
+	// Prefer the path strand actually loaded at startup.
 	if cp := config.ConfigPath; cp != "" && fileExists(cp) {
 		return cp
 	}
@@ -974,7 +974,7 @@ func findConfigFile() string {
 
 	locations := []string{
 		"config.toml",
-		"~/.cc-connect/config.toml",
+		"~/.strand/config.toml",
 	}
 
 	for _, loc := range locations {

@@ -243,14 +243,26 @@ func (p *CoinProvider) fetchCoins(ctx context.Context) error {
 	return nil
 }
 
-// ensureUpdated checks if cache is stale and refreshes if needed
+// ensureUpdated checks if cache is stale and refreshes if needed.
+// When a refresh fails but a previous board exists, keep serving the stale
+// list so Markets does not hard-fail with 502 on transient upstream/proxy errors.
 func (p *CoinProvider) ensureUpdated(ctx context.Context) error {
 	p.mu.RLock()
 	needsUpdate := time.Since(p.lastUpdated) > cacheDuration || len(p.allCoins) == 0
+	hasCache := len(p.allCoins) > 0
+	cachedAt := p.lastUpdated
 	p.mu.RUnlock()
 
-	if needsUpdate {
-		return p.fetchCoins(ctx)
+	if !needsUpdate {
+		return nil
+	}
+	if err := p.fetchCoins(ctx); err != nil {
+		if hasCache {
+			logger.Infof("⚠️ Hyperliquid coin refresh failed (%v); serving cached board from %s",
+				err, cachedAt.Format(time.RFC3339))
+			return nil
+		}
+		return err
 	}
 	return nil
 }

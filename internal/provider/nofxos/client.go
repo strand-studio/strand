@@ -1,6 +1,5 @@
-// Package nofxos provides data access to the NofxOS API (https://nofxos.ai)
-// for quantitative trading data including AI500 scores, OI rankings,
-// fund flow (NetFlow), price rankings, and coin details.
+// Package nofxos provides quant market-data access (AI500, OI rankings,
+// fund flow, price rankings, coin details), typically routed through Claw402.
 package nofxos
 
 import (
@@ -18,7 +17,7 @@ const (
 	DefaultAuthKey = ""
 )
 
-// Client is the NofxOS API client
+// Client is the quant market-data API client
 type Client struct {
 	BaseURL    string
 	AuthKey    string
@@ -41,7 +40,7 @@ func DefaultClient() *Client {
 	return defaultClient
 }
 
-// NewClient creates a new NofxOS API client
+// NewClient creates a new quant market-data API client
 func NewClient(baseURL, authKey string) *Client {
 	if baseURL == "" {
 		baseURL = DefaultBaseURL

@@ -147,7 +147,7 @@ export interface IndicatorConfig {
   external_data_sources?: ExternalDataSource[];
 
   // ========== Unified market-data source configuration ==========
-  // Legacy wire field name for the nofxos.ai / claw402 market-data key
+  // Legacy wire field name for the Claw402 quant-data market-data key
   nofxos_api_key?: string;
 
   // Quant data sources (fund flow, open interest changes, price changes)

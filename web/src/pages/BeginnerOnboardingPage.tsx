@@ -130,12 +130,12 @@ export function BeginnerOnboardingPage() {
 
   return (
     <div className="fixed inset-0 z-80">
-      <div className="absolute inset-0 bg-black/58 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 bg-strand-text/58 backdrop-blur-[2px]" />
       <div className="relative flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
         <button
           type="button"
           onClick={handleContinue}
-          className="absolute right-6 top-6 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(25,36,52,0.14)] bg-strand-text/5 text-strand-text-muted transition hover:border-[rgba(25,36,52,0.24)] hover:bg-strand-text/10 hover:text-strand-text"
+          className="absolute right-6 top-6 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-strand-border bg-strand-text/5 text-strand-text-muted transition hover:border-strand-text/25 hover:bg-strand-text/10 hover:text-strand-text"
           aria-label={isZh ? '跳过' : 'Skip'}
         >
           <X className="h-5 w-5" />
@@ -181,7 +181,7 @@ export function BeginnerOnboardingPage() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-[32px] border border-[rgba(25,36,52,0.14)] bg-strand-bg-lighter shadow-lg backdrop-blur-2xl">
+          <div className="overflow-hidden rounded-[32px] border border-strand-border bg-strand-bg-lighter shadow-lg backdrop-blur-2xl">
             {loading ? (
               <div className="flex min-h-[390px] items-center justify-center px-6 text-sm text-strand-text-muted">
                 {isZh
@@ -192,7 +192,7 @@ export function BeginnerOnboardingPage() {
               <div className="grid lg:grid-cols-[0.82fr_1.18fr]">
                 <section className="flex flex-col justify-center px-8 py-7 sm:px-9 lg:min-h-[430px]">
                   <div className="mx-auto w-full max-w-[248px] text-center">
-                    <div className="mx-auto inline-flex rounded-[28px] border border-[rgba(25,36,52,0.14)] bg-white p-4 shadow-xs">
+                    <div className="mx-auto inline-flex rounded-[28px] border border-strand-border bg-white p-4 shadow-xs">
                       <QRCodeSVG value={data.address} size={164} level="M" />
                     </div>
 
@@ -257,7 +257,7 @@ export function BeginnerOnboardingPage() {
                   </div>
                 </section>
 
-                <section className="border-t border-[rgba(25,36,52,0.14)] px-8 py-7 lg:border-l lg:border-t-0 lg:px-9">
+                <section className="border-t border-strand-border px-8 py-7 lg:border-l lg:border-t-0 lg:px-9">
                   <div className="space-y-5">
                     <div>
                       <div className="mb-3 flex items-center gap-2 text-sm font-medium text-strand-gold">
@@ -267,7 +267,7 @@ export function BeginnerOnboardingPage() {
                         </span>
                       </div>
                       <div className="flex items-stretch gap-3">
-                        <div className="min-w-0 flex-1 rounded-2xl border border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper px-5 py-3 font-mono text-[14px] text-strand-text">
+                        <div className="min-w-0 flex-1 rounded-2xl border border-strand-border bg-strand-bg-deeper px-5 py-3 font-mono text-[14px] text-strand-text">
                           <div className="break-all">{data.address}</div>
                         </div>
                         <button
@@ -275,7 +275,7 @@ export function BeginnerOnboardingPage() {
                           onClick={() =>
                             copyText(data.address, isZh ? 'Address' : 'Address')
                           }
-                          className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[rgba(25,36,52,0.14)] bg-strand-text/5 text-strand-text transition hover:border-[rgba(25,36,52,0.24)] hover:bg-strand-text/10 hover:text-strand-text"
+                          className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-strand-border bg-strand-text/5 text-strand-text transition hover:border-strand-text/25 hover:bg-strand-text/10 hover:text-strand-text"
                           aria-label={isZh ? '复制地址' : 'Copy address'}
                         >
                           <Copy className="h-5 w-5" />
@@ -289,7 +289,7 @@ export function BeginnerOnboardingPage() {
                     />
 
                     <div
-                      className={`rounded-[24px] border border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper px-5 py-3.5 text-strand-text-muted ${
+                      className={`rounded-[24px] border border-strand-border bg-strand-bg-deeper px-5 py-3.5 text-strand-text-muted ${
                         isZh
                           ? 'text-xs lg:whitespace-nowrap'
                           : 'text-[11px] leading-6'

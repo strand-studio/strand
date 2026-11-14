@@ -11,10 +11,7 @@ export function RegistrationDisabled() {
   }
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center"
-      style={{ background: '#f6f8fc', color: '#192434' }}
-    >
+    <div className="min-h-screen flex items-center justify-center bg-strand-bg text-strand-text">
       <div className="text-center max-w-md px-6">
         <img
           src="/icons/strand-flow.svg"
@@ -28,8 +25,7 @@ export function RegistrationDisabled() {
           {t('registrationClosedMessage', language)}
         </p>
         <button
-          className="mt-6 px-4 py-2 rounded-sm text-sm font-semibold transition-colors hover:opacity-90"
-          style={{ background: '#295be8', color: '#f6f8fc' }}
+          className="mt-6 px-4 py-2 rounded-sm text-sm font-semibold transition-colors hover:opacity-90 bg-strand-gold text-white"
           onClick={handleBackToLogin}
         >
           {t('backToLogin', language)}

@@ -207,7 +207,7 @@ export function MarketSymbolPage() {
   const changeClass =
     change == null ? '' : change > 0 ? 'up' : change < 0 ? 'down' : ''
 
-  const tradeHref = `${ROUTES.planning}?symbol=${encodeURIComponent(symbol)}`
+  const tradeHref = `${ROUTES.planning}?symbol=${encodeURIComponent(symbol)}&venue=${encodeURIComponent(exchange)}`
   const chatHref = `${ROUTES.chat}?q=${encodeURIComponent(display)}`
 
   const syncFromQuote = (q: string) => {

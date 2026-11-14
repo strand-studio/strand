@@ -19,7 +19,7 @@ export function Header({ simple = false }: HeaderProps) {
             <BrandLogo />
             <div>
               {!simple && (
-                <p className="text-xs mono" style={{ color: '#707e92' }}>
+                <p className="text-xs mono text-strand-text-muted">
                   {t('subtitle', language)}
                 </p>
               )}

@@ -9,7 +9,7 @@ import { resolveLaunchExchange, resolveLaunchModel } from './resolve'
 import type { LaunchOutcome } from './types'
 
 export const AUTOPILOT_TRADER_NAME = 'Strand Autopilot'
-/** Legacy trader name from the NOFX fork; still matched so relaunch updates in place. */
+/** Legacy trader name from older builds; still matched so relaunch updates in place. */
 const LEGACY_AUTOPILOT_TRADER_NAMES = ['NOFX Autopilot'] as const
 
 export interface LaunchAutopilotOptions {

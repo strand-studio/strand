@@ -200,7 +200,7 @@ func (e *Engine) runPendingRestartNotify(req *RestartRequest, firedCh chan struc
 	defer close(firedCh)
 
 	// Recover from any panic inside dispatch (ReconstructReplyCtx / Send) so a
-	// platform-side panic cannot take down the whole cc-connect process.
+	// platform-side panic cannot take down the whole strand process.
 	// See #1686 P1-A. Without this defer, a panic in the restart-notify
 	// goroutine kills the daemon because no higher-level recover exists.
 	defer func() {
@@ -429,7 +429,7 @@ type Engine struct {
 	autoCompressMaxTokens int
 	autoCompressMinGap    time.Duration
 	// autoCompressAllowHeuristic permits a trigger decision built from the
-	// text-length heuristic (1 token / 4 runes of cc-connect's own history) on a
+	// text-length heuristic (1 token / 4 runes of strand's own history) on a
 	// turn where an agent that CAN report exact usage has not reported it yet.
 	// The heuristic ignores tool_use/tool_result blocks and the fixed
 	// system-prompt+tools overhead, so it is routinely several times off in
@@ -453,7 +453,7 @@ type Engine struct {
 	showWorkdirIndicator bool
 	replyFooterEnabled   bool
 
-	// When true, /list etc. only show sessions tracked by cc-connect,
+	// When true, /list etc. only show sessions tracked by strand,
 	// hiding sessions created by direct CLI usage in the same work_dir.
 	// Default false = show all sessions.
 	filterExternalSessions bool
@@ -1057,7 +1057,7 @@ func (e *Engine) SetSkipGit(skipGit bool) {
 // prepended to each message before forwarding it to the agent. When enabled,
 // the agent receives a preamble line like:
 //
-//	[cc-connect sender_id=ou_abc123 platform=feishu]
+//	[strand sender_id=ou_abc123 platform=feishu]
 //
 // This allows the agent to identify who sent the message and adjust behavior
 // accordingly (e.g. personal task views, role-based access control).
@@ -2890,7 +2890,7 @@ const staleLockDumpKeep = 5
 // message text, so dumps must not be world-readable in a shared /tmp, and the
 // private dir narrows (not fully defeats — MkdirAll does not verify ownership
 // of a pre-existing directory; an ownership check is follow-up material)
-// symlink planting under predictable filenames. For a single cc-connect
+// symlink planting under predictable filenames. For a single strand
 // instance prune sees only its own files; if several instances of the same
 // user share the host, they share this dir and the 5-dump retention becomes
 // a global cap — still bounded, just not per-process.
@@ -4232,7 +4232,7 @@ func (e *Engine) getOrCreateWorkspaceAgent(workspace string) (Agent, *SessionMan
 	// this, per-workspace agents silently bypass the project-level
 	// run_as_user config because their opts map is freshly constructed
 	// above, not inherited from the project-level opts that main.go
-	// already decorated. See cc-connect#496 and the cc-connect/core/runas.go
+	// already decorated. See strand#496 and the strand/core/runas.go
 	// preamble for why run_as_user has to survive this copy.
 	if _, ok := opts["run_as_user"]; !ok {
 		if u := e.runAsUser(); u != "" {
@@ -4381,7 +4381,7 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 		ccKey = ccSessionKey
 	}
 
-	// Inject per-session env vars so the agent subprocess can call `cc-connect cron add` etc.
+	// Inject per-session env vars so the agent subprocess can call `strand cron add` etc.
 	if inj, ok := agent.(SessionEnvInjector); ok {
 		envVars := []string{
 			"CC_PROJECT=" + e.name,
@@ -4424,11 +4424,11 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 
 	// Restore the agent's active provider from the session before starting a
 	// new sub-process. The provider choice is persisted to disk by
-	// `/provider switch`; without restoring it here, a cc-connect process
+	// `/provider switch`; without restoring it here, a strand process
 	// restart silently drops the user's choice while keeping the resumed
 	// agent_session_id, producing "model X does not exist" errors when
 	// the model name is sent to the wrong base_url
-	// (cc-connect internal task t-20260614-qp7xnl).
+	// (strand internal task t-20260614-qp7xnl).
 	restoreActiveProviderFromSession(agent, session)
 
 	// Resume only when we have a concrete saved agent session ID. If the session
@@ -4437,7 +4437,7 @@ func (e *Engine) getOrCreateInteractiveStateWith(sessionKey string, p Platform, 
 	startSessionID := session.GetAgentSessionID()
 	// Cross-project session leakage guard (issue #599): if a session ID was
 	// inherited from a different project's workspace (e.g. another
-	// cc-connect project that happens to share a Session row), the agent
+	// strand project that happens to share a Session row), the agent
 	// can detect the mismatch and we should clear the ID rather than
 	// resume a conversation that has nothing to do with this project.
 	if startSessionID != "" {
@@ -5230,6 +5230,9 @@ func (e *Engine) runUnsolicitedReader(ctx context.Context, cancel context.Cancel
 				if fullResponse == "" && len(textParts) > 0 {
 					fullResponse = strings.Join(textParts, "")
 				}
+				if rewritten, ok := e.humanizeAgentAuthMessage(fullResponse); ok {
+					fullResponse = rewritten
+				}
 
 				if fullResponse != "" {
 					for _, chunk := range SplitMessageCodeFenceAware(fullResponse, maxPlatformMessageLen) {
@@ -5406,6 +5409,10 @@ type agentErrorHandler struct {
 
 var agentErrorHandlers = []agentErrorHandler{
 	{"Session not found", MsgSessionNotFound},
+	{"not logged in", MsgAgentNotLoggedIn},
+	{"claude auth login", MsgAgentNotLoggedIn},
+	{"please run /login", MsgAgentNotLoggedIn},
+	{"run /login", MsgAgentNotLoggedIn},
 }
 
 func (e *Engine) processInteractiveEvents(state *interactiveState, session *Session, sessions *SessionManager, sessionKey string, msgID string, turnStart time.Time, stopTypingFn func(), sendDone <-chan error, replyCtx any, lockGen uint64) {
@@ -6252,6 +6259,11 @@ func (e *Engine) processInteractiveEvents(state *interactiveState, session *Sess
 			selfPct := parseSelfReportedCtx(fullResponse)
 			cleanResponse := ctxSelfReportRe.ReplaceAllString(fullResponse, "")
 			cleanResponse = strings.TrimRight(cleanResponse, "\n ")
+			// Claude Code login prompts ("Please run /login") confuse chat users;
+			// replace with Strand-facing guidance before history + delivery.
+			if rewritten, ok := e.humanizeAgentAuthMessage(cleanResponse); ok {
+				cleanResponse = rewritten
+			}
 			baseResponse := cleanResponse
 
 			contextEstimate := estimateTokensWithPendingAssistant(session.GetHistory(0), baseResponse)
@@ -6826,11 +6838,15 @@ func (e *Engine) processInteractiveEvents(state *interactiveState, session *Sess
 					Error:      event.Error.Error(),
 				})
 				userMsg := fmt.Sprintf(e.i18n.T(MsgError), errMsg)
+				errLower := strings.ToLower(errMsg)
 				for _, h := range agentErrorHandlers {
-					if strings.Contains(errMsg, h.contains) {
+					if strings.Contains(errLower, strings.ToLower(h.contains)) {
 						userMsg = e.i18n.T(h.msgKey)
 						break
 					}
+				}
+				if rewritten, ok := e.humanizeAgentAuthMessage(errMsg); ok {
+					userMsg = rewritten
 				}
 				e.send(p, replyCtx, userMsg)
 			}
@@ -6859,6 +6875,9 @@ channelClosed:
 		state.mu.Unlock()
 
 		fullResponse := strings.Join(textParts, "")
+		if rewritten, ok := e.humanizeAgentAuthMessage(fullResponse); ok {
+			fullResponse = rewritten
+		}
 		session.AddHistory("assistant", fullResponse)
 		// Persist immediately — this path runs on abnormal channel close,
 		// so deferring the save until the next foreground turn risks losing
@@ -7059,6 +7078,9 @@ var builtinCommands = []struct {
 	{[]string{"current"}, "current"},
 	{[]string{"status"}, "status"},
 	{[]string{"usage", "quota"}, "usage"},
+	// Intercept Claude Code's "Please run /login" advice so TG users get a
+	// Strand explanation instead of forwarding /login to the agent.
+	{[]string{"login", "signin", "sign-in"}, "login"},
 	{[]string{"history"}, "history"},
 	{[]string{"allow"}, "allow"},
 	{[]string{"model"}, "model"},
@@ -7265,6 +7287,8 @@ func (e *Engine) handleCommand(p Platform, msg *Message, raw string) bool {
 		e.cmdStatus(p, msg)
 	case "usage":
 		e.cmdUsage(p, msg)
+	case "login":
+		e.reply(p, msg.ReplyCtx, e.i18n.T(MsgAgentNotLoggedIn))
 	case "history":
 		e.cmdHistory(p, msg, args)
 	case "allow":
@@ -7378,7 +7402,7 @@ func (e *Engine) handleCommand(p Platform, msg *Message, raw string) bool {
 			e.executeSkill(p, msg, skill, args)
 			return true
 		}
-		// Not a cc-connect command — notify user, then fall through to agent
+		// Not a strand command — notify user, then fall through to agent
 		e.send(p, msg.ReplyCtx, fmt.Sprintf(e.i18n.T(MsgUnknownCommand), "/"+cmd))
 		return false
 	}
@@ -7657,7 +7681,7 @@ func (e *Engine) cmdNew(p Platform, msg *Message, args []string) {
 // see and switch to.
 //
 // filter_external_sessions governs whether sessions created by direct CLI use
-// are shown at all; when enabled only sessions cc-connect tracks remain.
+// are shown at all; when enabled only sessions strand tracks remain.
 //
 // In multi-workspace mode several topics can share one workspace, and the
 // SessionManager is per-workspace (getOrCreateWorkspaceAgent), so the agent
@@ -7692,7 +7716,7 @@ func (e *Engine) applySessionFilter(sessions []AgentSessionInfo, sm *SessionMana
 	return filtered
 }
 
-// filterOwnedSessions removes agent sessions that are not tracked by cc-connect's
+// filterOwnedSessions removes agent sessions that are not tracked by strand's
 // session manager. This prevents external CLI sessions in the same work_dir from
 // appearing in /list, /switch, /delete, etc. If the session manager has no tracked
 // agent sessions at all (e.g. first run), all sessions are returned unfiltered.
@@ -11594,10 +11618,10 @@ func (e *Engine) switchProvider(p Platform, msg *Message, sessions *SessionManag
 	s.SetAgentSessionID("", "")
 	s.ClearHistory()
 	// Persist the provider choice so that a subsequent --resume after a
-	// cc-connect process restart can re-bind the agent's activeIdx; without
+	// strand process restart can re-bind the agent's activeIdx; without
 	// this the agent reverts to its default provider while the saved
 	// agent_session_id keeps the conversation going, producing "model X
-	// does not exist" errors against the wrong base_url. See cc-connect
+	// does not exist" errors against the wrong base_url. See strand
 	// internal task t-20260614-qp7xnl.
 	s.SetActiveProvider(name)
 	sessions.Save()
@@ -12158,7 +12182,7 @@ func normalizeSendWorkDir(workDir, base string) (string, error) {
 }
 
 // SendTTSToSession synthesizes and sends a voice message to an active session.
-// It is used by the local API/CLI so agents can call `cc-connect send --tts`.
+// It is used by the local API/CLI so agents can call `strand send --tts`.
 func (e *Engine) SendTTSToSession(sessionKey, text string) error {
 	text = strings.TrimSpace(text)
 	if text == "" {
@@ -12174,7 +12198,7 @@ func (e *Engine) SendTTSToSession(sessionKey, text string) error {
 // SendAudiosToSession routes outbound audio attachments to the
 // platform's AudioSender (native voice bubble + transcoding) when
 // supported, falling back to FileSender otherwise. Used by
-// `cc-connect send --audio`. Mirrors SendToSessionWithAttachments for
+// `strand send --audio`. Mirrors SendToSessionWithAttachments for
 // audio-typed clips so they don't get dispatched as generic files.
 func (e *Engine) SendAudiosToSession(sessionKey string, audios []FileAttachment) error {
 	if len(audios) == 0 {
@@ -12219,7 +12243,7 @@ func (e *Engine) SendAudiosToSession(sessionKey string, audios []FileAttachment)
 
 // SendVideosToSession routes outbound video attachments to the
 // platform's VideoSender (native video bubble) when supported, falling
-// back to FileSender otherwise. Used by `cc-connect send --video`.
+// back to FileSender otherwise. Used by `strand send --video`.
 func (e *Engine) SendVideosToSession(sessionKey string, videos []FileAttachment) error {
 	if len(videos) == 0 {
 		return nil
@@ -16982,7 +17006,7 @@ func (e *Engine) cmdBindStatus(p Platform, replyCtx any, chatID string) {
 	e.reply(p, replyCtx, fmt.Sprintf(e.i18n.T(MsgRelayBound), strings.Join(parts, " ↔ ")))
 }
 
-const ccConnectInstructionMarker = "<!-- cc-connect-instructions -->"
+const ccConnectInstructionMarker = "<!-- strand-instructions -->"
 
 type setupResult int
 
@@ -17078,9 +17102,9 @@ func (e *Engine) buildSenderPrompt(content, userID, userName, platform, sessionK
 	}
 	if userName != "" {
 		safeName := strings.NewReplacer(`"`, `'`, "\n", " ", "\r", "").Replace(userName)
-		return fmt.Sprintf("[cc-connect sender_id=%s sender_name=\"%s\" platform=%s chat_id=%s]\n%s", userID, safeName, platform, chatID, content)
+		return fmt.Sprintf("[Strand sender_id=%s sender_name=\"%s\" platform=%s chat_id=%s]\n%s", userID, safeName, platform, chatID, content)
 	}
-	return fmt.Sprintf("[cc-connect sender_id=%s platform=%s chat_id=%s]\n%s", userID, platform, chatID, content)
+	return fmt.Sprintf("[Strand sender_id=%s platform=%s chat_id=%s]\n%s", userID, platform, chatID, content)
 }
 
 func extractChannelID(sessionKey string) string {
@@ -17947,7 +17971,7 @@ func (e *Engine) cmdWebStatus(p Platform, msg *Message) {
 
 // restoreActiveProviderFromSession syncs the agent's active provider to the
 // one persisted in the session, but only when the choice survived a
-// cc-connect process restart (i.e. the in-memory active provider is not
+// strand process restart (i.e. the in-memory active provider is not
 // already the desired one). It is a no-op when:
 //   - the agent does not implement ProviderSwitcher,
 //   - the session never recorded a provider choice (`/provider switch` was

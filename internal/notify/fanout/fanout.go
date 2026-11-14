@@ -64,6 +64,86 @@ func (a *Alerter) Notify(text string) {
 			}
 		}
 	}
+	// Unified messaging bindings (Web/CLI configured platforms).
+	// Prefer per-user scene defaults (alert_platform_ids) when set; else all alerts_enabled.
+	channels := a.messagingAlertTargets()
+	for _, ch := range channels {
+		if err := a.notifyMessagingChannel(ch, text); err != nil {
+			logger.Debugf("messaging alert %s/%s skipped: %v", ch.PlatformType, ch.ID, err)
+		}
+	}
+}
+
+func (a *Alerter) messagingAlertTargets() []*store.MessagingChannel {
+	if a == nil || a.store == nil {
+		return nil
+	}
+	// Collect selected ids across users that have defaults; empty selection → all.
+	defaults, err := a.store.Resources().ListDefaultsWithAlertSelection()
+	if err != nil || len(defaults) == 0 {
+		all, _ := a.store.Messaging().ListAllEnabledAlertChannels()
+		return all
+	}
+	var selectedIDs []string
+	anyRestriction := false
+	for _, d := range defaults {
+		ids := d.AlertIDs()
+		if len(ids) == 0 {
+			continue
+		}
+		anyRestriction = true
+		selectedIDs = append(selectedIDs, ids...)
+	}
+	if !anyRestriction {
+		all, _ := a.store.Messaging().ListAllEnabledAlertChannels()
+		return all
+	}
+	rows, err := a.store.Messaging().ListEnabledAlertChannelsByIDs(selectedIDs)
+	if err != nil {
+		return nil
+	}
+	return rows
+}
+
+func (a *Alerter) notifyMessagingChannel(ch *store.MessagingChannel, text string) error {
+	if ch == nil {
+		return nil
+	}
+	creds, err := ch.CredentialMap()
+	if err != nil {
+		return err
+	}
+	switch strings.ToLower(ch.PlatformType) {
+	case "telegram":
+		token := strings.TrimSpace(creds["token"])
+		peer := strings.TrimSpace(ch.BoundPeer)
+		if peer == "" {
+			peer = strings.TrimSpace(creds["chat_id"])
+		}
+		if token == "" || peer == "" {
+			return fmt.Errorf("telegram alerts need token + bound_peer (chat id)")
+		}
+		return a.postJSON(
+			fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token),
+			map[string]any{"chat_id": peer, "text": truncate(text, 3500)},
+		)
+	case "discord":
+		return a.notifyDiscord(&store.NotifyChannel{
+			BotToken:    creds["token"],
+			WebhookURL:  creds["webhook_url"],
+			BoundChanID: firstNonEmpty(ch.BoundPeer, creds["channel_id"]),
+		}, text)
+	case "slack":
+		return a.notifySlack(&store.NotifyChannel{
+			BotToken:    creds["token"],
+			WebhookURL:  creds["webhook_url"],
+			BoundChanID: firstNonEmpty(ch.BoundPeer, creds["channel_id"]),
+		}, text)
+	default:
+		// Chat platforms without a simple HTTP alert path still receive
+		// conversation traffic; push alerts are best-effort for MVP.
+		return fmt.Errorf("alert push not implemented for %s", ch.PlatformType)
+	}
 }
 
 func (a *Alerter) notifyDiscord(row *store.NotifyChannel, text string) error {

@@ -12,8 +12,8 @@ import { api } from '../../lib/api'
 import { planningAPI } from '../../lib/planning'
 import type { AccountCheck } from '../../lib/frontierWorkspace'
 import { HyperliquidWalletConnect } from '../common/HyperliquidWalletConnect'
-import { ExchangeConfigModal } from '../trader/ExchangeConfigModal'
-import { ModelConfigModal } from '../trader/ModelConfigModal'
+import { Link } from 'react-router'
+import { ROUTES, buildResourcesConfigurePath } from '../../router/paths'
 
 export type FeeWalletState =
   | 'checking'
@@ -80,11 +80,7 @@ export function FrontierSetup({
   const [working, setWorking] = useState(false)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
-  const [cex, setCex] = useState(false)
-  const [addingAccount, setAddingAccount] = useState(false)
   const [choice, setChoice] = useState(venue)
-  const [ownAI, setOwnAI] = useState<AIModel[] | null>(null)
-  const [directProviders, setDirectProviders] = useState<AIModel[]>([])
   const [check, setCheck] = useState<AccountCheck | null>(null)
   const dialog = useRef<HTMLElement>(null)
   const mounted = useRef(true),
@@ -208,29 +204,6 @@ export function FrontierSetup({
     }
   }, [verifyAccount, accountID])
   useEffect(() => {
-    if (open !== 'ai') return
-    let cancelled = false
-    void (async () => {
-      try {
-        const supported = await api.getSupportedModels()
-        if (!cancelled)
-          setDirectProviders(
-            supported.filter(
-              (model) =>
-                model.provider !== 'claw402' &&
-                model.id !== 'claw402' &&
-                !model.provider?.startsWith('blockrun')
-            )
-          )
-      } catch {
-        if (!cancelled) setDirectProviders([])
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [open])
-  useEffect(() => {
     if (!open || !wallet?.found || status === 'ready') return
     const timer = window.setInterval(() => {
       if (!document.hidden) void refreshWallet()
@@ -244,7 +217,7 @@ export function FrontierSetup({
     }
   }, [open, venue, verifyAccount])
   useEffect(() => {
-    if (!open || cex || ownAI) return
+    if (!open) return
     const previous = document.activeElement as HTMLElement | null
     const overflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -273,13 +246,13 @@ export function FrontierSetup({
       document.body.style.overflow = overflow
       previous?.focus()
     }
-  }, [open, cex, ownAI, onOpen])
+  }, [open, onOpen])
   async function createWallet() {
     if (working || pending.current) return
     if (!wallet?.found) {
-      setOwnAI([
-        { id: 'claw402', name: 'Claw402', provider: 'claw402', enabled: false },
-      ])
+      window.location.assign(
+        buildResourcesConfigurePath({ kind: 'model', type: 'claw402' })
+      )
       return
     }
     setWorking(true)
@@ -313,7 +286,6 @@ export function FrontierSetup({
           a.exchange_type === choice && !accounts.some((old) => old.id === a.id)
       )?.id
     await onRefresh(undefined, choice, saved)
-    setCex(false)
     // Stay here for the live check. Saving credentials alone is not verification.
   }
   function finish(step: 'ai' | 'exchange') {
@@ -382,7 +354,7 @@ export function FrontierSetup({
           <small>AI fees and trading funds are separate.</small>
         </section>
       )}
-      {open && !cex && !ownAI && (
+      {open && (
         <div className="frontier-setup-backdrop">
           <section
             ref={dialog}
@@ -525,15 +497,12 @@ export function FrontierSetup({
                   your browser. Use Private key backup above to save your key.
                   Keep a backup of your deployment too.
                 </p>
-                {directProviders.length > 0 && (
-                  <button
-                    disabled={working}
-                    className="frontier-own-ai"
-                    onClick={() => setOwnAI(directProviders)}
-                  >
-                    Use my own API key instead →
-                  </button>
-                )}
+                <Link
+                  className="frontier-own-ai"
+                  to={ROUTES.resources}
+                >
+                  Configure AI models in Resources →
+                </Link>
                 <footer>
                   <button onClick={() => onOpen(null)}>Keep exploring</button>
                   <button
@@ -655,27 +624,24 @@ export function FrontierSetup({
                         Save the key here. We then verify the live account.
                       </li>
                     </ol>
-                    <button
+                    <Link
                       className="planning-primary"
-                      onClick={() => {
-                        setAddingAccount(false)
-                        setCex(true)
-                      }}
+                      to={buildResourcesConfigurePath({
+                        kind: 'exchange',
+                        id:
+                          currentAccount?.exchange_type === choice
+                            ? currentAccount.id
+                            : null,
+                        type: choice,
+                      })}
                     >
                       {currentAccount?.exchange_type === choice
-                        ? `Update ${venueName(choice)} connection`
-                        : `Connect ${venueName(choice)}`}
-                    </button>
-                    {currentAccount?.exchange_type === choice && (
-                      <button
-                        onClick={() => {
-                          setAddingAccount(true)
-                          setCex(true)
-                        }}
-                      >
-                        Add another {venueName(choice)} account
-                      </button>
-                    )}
+                        ? `Update ${venueName(choice)} in Resources`
+                        : `Connect ${venueName(choice)} in Resources`}
+                    </Link>
+                    <Link to={ROUTES.resources}>
+                      Manage all exchanges in Resources →
+                    </Link>
                   </div>
                 )}
                 <p className="frontier-setup-note">
@@ -698,86 +664,6 @@ export function FrontierSetup({
             )}
           </section>
         </div>
-      )}
-      {cex && (
-        <ExchangeConfigModal
-          allExchanges={accounts}
-          editingExchangeId={
-            !addingAccount && currentAccount?.exchange_type === choice
-              ? currentAccount.id
-              : null
-          }
-          initialExchangeType={choice}
-          allowedExchangeTypes={[choice]}
-          language="en"
-          onClose={() => setCex(false)}
-          onDelete={() => {}}
-          onSave={async (id, type, name, key, secret, passphrase, testnet) => {
-            if (!apiKeyVenues.includes(type) || type !== choice || testnet)
-              throw new Error(
-                'Trade requires a supported mainnet USDT futures account'
-              )
-            if (id) {
-              await api.updateExchangeConfigsEncrypted({
-                exchanges: {
-                  [id]: {
-                    enabled: true,
-                    api_key: key,
-                    secret_key: secret || '',
-                    passphrase: passphrase || '',
-                    testnet: false,
-                  },
-                },
-              })
-              await savedExchange(id)
-            } else {
-              const result = await api.createExchangeEncrypted({
-                exchange_type: type,
-                account_name: name,
-                enabled: true,
-                api_key: key,
-                secret_key: secret || '',
-                passphrase: passphrase || '',
-                testnet: false,
-              })
-              await savedExchange(result.id)
-            }
-          }}
-        />
-      )}
-      {ownAI && (
-        <ModelConfigModal
-          allModels={ownAI}
-          configuredModels={models}
-          editingModelId={null}
-          language="en"
-          onClose={() => setOwnAI(null)}
-          onDelete={() => {}}
-          onSave={async (id, key, url, name) => {
-            try {
-              await api.updateModelConfigs({
-                models: {
-                  [id]: {
-                    enabled: true,
-                    api_key: key,
-                    custom_api_url: url || '',
-                    custom_model_name: name || '',
-                  },
-                },
-              })
-              const configured = await api.getModelConfigs()
-              const match =
-                configured.find((m) => m.id === id) ||
-                configured.find((m) => m.provider === id && m.enabled)
-              await onRefresh(match?.id)
-              await refreshWallet()
-              setOwnAI(null)
-              setError('')
-            } catch {
-              throw new Error('Could not save the AI provider.')
-            }
-          }}
-        />
       )}
     </>
   )

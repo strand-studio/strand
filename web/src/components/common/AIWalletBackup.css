@@ -1,10 +1,10 @@
 .ai-wallet-backup {
   margin-top: 18px;
   padding: 18px;
-  border: 1px solid #dee4da;
+  border: 1px solid var(--panel-border);
   border-radius: 10px;
-  background: #fafbf8;
-  color: #33463b;
+  background: var(--panel-bg);
+  color: var(--text-primary);
 }
 .ai-wallet-backup-heading {
   display: flex;
@@ -16,7 +16,7 @@
   font-size: 13px;
   line-height: 1.6;
   margin: 8px 0 13px;
-  color: #697366;
+  color: var(--text-secondary);
 }
 .ai-wallet-backup label {
   display: block;
@@ -27,10 +27,10 @@
   width: 100%;
   padding: 12px;
   margin: 6px 0 12px;
-  border: 1px solid #dce2d7;
+  border: 1px solid var(--panel-border);
   border-radius: 7px;
-  background: white;
-  color: #253b2e;
+  background: var(--background);
+  color: var(--text-primary);
   font-family: monospace;
   font-size: 12px;
 }
@@ -45,10 +45,10 @@
   justify-content: center;
   gap: 7px;
   padding: 9px 12px;
-  border: 1px solid #d8dfd3;
+  border: 1px solid var(--panel-border);
   border-radius: 7px;
-  background: white;
-  color: #344f3d;
+  background: var(--panel-bg-hover);
+  color: var(--text-primary);
   cursor: pointer;
   font-size: 13px;
 }
@@ -59,11 +59,11 @@
 .ai-wallet-backup small {
   display: block;
   margin-top: 10px;
-  color: #7d7868;
+  color: var(--text-tertiary);
   font-size: 12px;
   line-height: 1.6;
 }
 .ai-wallet-backup [role='alert'] {
-  color: #b33226;
+  color: var(--binance-red);
   margin-bottom: 0;
 }

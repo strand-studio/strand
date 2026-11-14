@@ -9,34 +9,35 @@ import (
 
 // DaemonCommand provides background helpers around start --detach.
 var DaemonCommand = &cli.Command{
-	Name:  "daemon",
-	Usage: "后台进程：start / stop / status / logs（等价于 start --detach）",
+	Name:        "daemon",
+	Usage:       "Background process helpers (same as start --detach)",
+	Description: "start / stop / restart / status / logs for a detached Strand instance.",
 	Subcommands: []*cli.Command{
 		{
 			Name:   "start",
-			Usage:  "后台启动服务",
+			Usage:  "Start Strand in the background",
 			Action: daemonStartAction,
 		},
 		{
 			Name:   "stop",
-			Usage:  "停止后台服务",
+			Usage:  "Stop the background service",
 			Action: daemonStopAction,
 		},
 		{
 			Name:   "restart",
-			Usage:  "重启后台服务",
+			Usage:  "Restart the background service",
 			Action: daemonRestartAction,
 		},
 		{
 			Name:   "status",
-			Usage:  "查看后台状态",
+			Usage:  "Show background service status",
 			Action: daemonStatusAction,
 		},
 		{
-			Name:   "logs",
-			Usage:  "打印服务日志（strand.log）",
+			Name:  "logs",
+			Usage: "Print service logs (strand.log)",
 			Flags: []cli.Flag{
-				&cli.IntFlag{Name: "n", Value: 80, Usage: "显示最后 N 行"},
+				&cli.IntFlag{Name: "n", Value: 80, Usage: "Show the last N lines"},
 			},
 			Action: daemonLogsAction,
 		},
@@ -82,7 +83,7 @@ func daemonLogsAction(ctx *cli.Context) error {
 	path := cfg.LogPath()
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return finish("", fmt.Errorf("无法打开日志 %s: %w", path, err))
+		return finish("", fmt.Errorf("cannot open log %s: %w", path, err))
 	}
 	n := ctx.Int("n")
 	if n <= 0 {

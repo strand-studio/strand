@@ -70,6 +70,8 @@ interface ExchangeConfigModalProps {
   onDelete: (exchangeId: string) => void
   onClose: () => void
   language: Language
+  /** Page-style embed (no overlay). Used by Resources hub. */
+  embedded?: boolean
 }
 
 // Step indicator component
@@ -184,14 +186,21 @@ export function ExchangeConfigModal({
   onDelete,
   onClose,
   language,
+  embedded = false,
 }: ExchangeConfigModalProps) {
   const { user } = useAuth()
   // Step: 0 = select exchange, 1 = configure
+  const editingExchange = editingExchangeId
+    ? allExchanges?.find((e) => e.id === editingExchangeId)
+    : null
   const [currentStep, setCurrentStep] = useState(
     editingExchangeId || initialExchangeType ? 1 : 0
   )
   const [selectedExchangeType, setSelectedExchangeType] = useState(
-    initialExchangeType || ''
+    editingExchange?.exchange_type ||
+      editingExchange?.id ||
+      initialExchangeType ||
+      ''
   )
   const [apiKey, setApiKey] = useState('')
   const [secretKey, setSecretKey] = useState('')
@@ -229,20 +238,20 @@ export function ExchangeConfigModal({
   const [saveError, setSaveError] = useState('')
   const [accountName, setAccountName] = useState('')
 
-  const selectedExchange = editingExchangeId
-    ? allExchanges?.find((e) => e.id === editingExchangeId)
-    : null
+  const selectedExchange = editingExchange
 
   const selectedTemplate = editingExchangeId
     ? SUPPORTED_EXCHANGE_TEMPLATES.find(
-        (t) => t.exchange_type === selectedExchange?.exchange_type
+        (t) =>
+          t.exchange_type ===
+          (selectedExchange?.exchange_type || selectedExchangeType)
       )
     : SUPPORTED_EXCHANGE_TEMPLATES.find(
         (t) => t.exchange_type === selectedExchangeType
       )
 
   const currentExchangeType = editingExchangeId
-    ? selectedExchange?.exchange_type
+    ? selectedExchange?.exchange_type || selectedExchangeType
     : selectedExchangeType
 
   const exchangeRegistrationLinks: Record<
@@ -545,12 +554,8 @@ export function ExchangeConfigModal({
       (!allowedExchangeTypes || allowedExchangeTypes.includes(t.exchange_type))
   )
 
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto backdrop-blur-xs">
-      <div
-        className="rounded-2xl w-full max-w-2xl relative my-8 shadow-2xl"
-        style={{ background: 'var(--panel-bg)', maxHeight: 'calc(100vh - 4rem)' }}
-      >
+  const panel = (
+      <>
         {/* Header */}
         <div className="flex items-center justify-between p-6 pb-2">
           <div className="flex items-center gap-3">
@@ -558,7 +563,7 @@ export function ExchangeConfigModal({
               <button
                 type="button"
                 onClick={handleBack}
-                className="p-2 rounded-lg hover:bg-black/5 transition-colors"
+                className="p-2 rounded-lg hover:bg-strand-text/5 transition-colors"
               >
                 <ChevronLeft className="w-5 h-5" style={{ color: 'var(--text-tertiary)' }} />
               </button>
@@ -597,7 +602,7 @@ export function ExchangeConfigModal({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-lg hover:bg-black/5 transition-colors"
+              className="p-2 rounded-lg hover:bg-strand-text/5 transition-colors"
               style={{ color: 'var(--text-tertiary)' }}
             >
               ✕
@@ -613,10 +618,7 @@ export function ExchangeConfigModal({
         )}
 
         {/* Content */}
-        <div
-          className="px-6 pb-6 overflow-y-auto"
-          style={{ maxHeight: 'calc(100vh - 16rem)' }}
-        >
+        <div className="px-6 pb-6">
           {/* Step 0: Select Exchange */}
           {currentStep === 0 && !editingExchangeId && (
             <div className="space-y-6">
@@ -1432,7 +1434,7 @@ export function ExchangeConfigModal({
                 <button
                   type="button"
                   onClick={handleBack}
-                  className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-black/5"
+                  className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-strand-text/5"
                   style={{ background: 'var(--panel-bg-hover)', color: 'var(--text-tertiary)' }}
                 >
                   {currentExchangeType === 'hyperliquid'
@@ -1469,16 +1471,48 @@ export function ExchangeConfigModal({
             </form>
           )}
         </div>
-      </div>
+      </>
+  )
 
-      {/* Binance Guide Modal */}
+  return (
+    <>
+      {embedded ? (
+        <div className="w-full" style={{ background: 'var(--panel-bg)' }}>
+          {panel}
+        </div>
+      ) : (
+        <div
+          className="fixed inset-0 z-[80] overflow-y-auto"
+          style={{
+            background:
+              'color-mix(in srgb, var(--background, #0b1220) 45%, transparent)',
+            backdropFilter: 'blur(6px)',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onClose()
+          }}
+        >
+          <div className="min-h-full flex items-start justify-center px-4 py-6 sm:py-10">
+            <div
+              role="dialog"
+              aria-modal="true"
+              className="rounded-2xl w-full max-w-2xl relative shadow-2xl border border-strand-border/40 overflow-hidden"
+              style={{ background: 'var(--panel-bg)' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {panel}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showGuide && (
         <div
-          className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/75 flex items-start justify-center z-[90] p-4 overflow-y-auto"
           onClick={() => setShowGuide(false)}
         >
           <div
-            className="rounded-2xl p-6 w-full max-w-4xl"
+            className="rounded-2xl p-6 w-full max-w-4xl my-6"
             style={{ background: 'var(--panel-bg)' }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1487,13 +1521,19 @@ export function ExchangeConfigModal({
                 className="text-xl font-bold flex items-center gap-2"
                 style={{ color: 'var(--text-primary)' }}
               >
-                <BookOpen className="w-6 h-6" style={{ color: 'var(--strand-accent)' }} />
+                <BookOpen
+                  className="w-6 h-6"
+                  style={{ color: 'var(--strand-accent)' }}
+                />
                 {t('binanceSetupGuide', language)}
               </h3>
               <button
                 onClick={() => setShowGuide(false)}
                 className="px-4 py-2 rounded-lg text-sm font-semibold"
-                style={{ background: 'var(--panel-bg-hover)', color: 'var(--text-tertiary)' }}
+                style={{
+                  background: 'var(--panel-bg-hover)',
+                  color: 'var(--text-tertiary)',
+                }}
               >
                 {t('closeGuide', language)}
               </button>
@@ -1509,7 +1549,6 @@ export function ExchangeConfigModal({
         </div>
       )}
 
-      {/* Secure Input Modal */}
       <TwoStageKeyModal
         isOpen={secureInputTarget !== null}
         language={language}
@@ -1518,6 +1557,6 @@ export function ExchangeConfigModal({
         onCancel={() => setSecureInputTarget(null)}
         onComplete={handleSecureInputComplete}
       />
-    </div>
+    </>
   )
 }

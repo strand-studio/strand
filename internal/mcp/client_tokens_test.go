@@ -7,12 +7,12 @@ func TestUsesMaxCompletionTokens(t *testing.T) {
 		provider, model, base string
 		want                  bool
 	}{
-		{ProviderOpenAI, "gpt-4o-mini", DefaultOpenAIBaseURL, true},
-		{ProviderCustom, "gpt-4o-mini", DefaultOpenAIBaseURL, true},
+		{ProviderOpenAI, "gpt-6-luna", DefaultOpenAIBaseURL, true},
+		{ProviderCustom, "gpt-6-luna", DefaultOpenAIBaseURL, true},
 		{ProviderCustom, "gpt-5.6", "https://relay.example/v1", true},
 		{ProviderCustom, "o3-mini", "https://relay.example/v1", true},
-		{ProviderDeepSeek, "deepseek-chat", DefaultDeepSeekBaseURL, false},
-		{ProviderCustom, "deepseek-chat", DefaultDeepSeekBaseURL, false},
+		{ProviderDeepSeek, "deepseek-flash", DefaultDeepSeekBaseURL, false},
+		{ProviderCustom, "deepseek-flash", DefaultDeepSeekBaseURL, false},
 	}
 	for _, tc := range cases {
 		got := usesMaxCompletionTokens(tc.provider, tc.model, tc.base)

@@ -43,7 +43,7 @@ func shortAddr(addr string) string {
 
 const (
 	DefaultClaw402URL   = "https://claw402.ai"
-	DefaultClaw402Model = "gpt-5.6"
+	DefaultClaw402Model = "gpt-6-luna"
 )
 
 // claw402ModelEndpoints maps user-friendly model names to claw402 API paths.

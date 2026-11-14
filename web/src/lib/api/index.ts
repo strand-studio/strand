@@ -7,6 +7,8 @@ import { walletApi } from './wallet'
 import * as chatApi from './chat'
 import * as chatSessionsApi from './chatSessions'
 import * as notifyChannelsApi from './notifyChannels'
+import { messagingApi } from './messaging'
+import { resourcesApi } from './resources'
 
 export const api = {
   ...traderApi,
@@ -15,6 +17,11 @@ export const api = {
   ...dataApi,
   ...telegramApi,
   ...walletApi,
+  ...messagingApi,
+  resourcesOverview: resourcesApi.overview,
+  resourcesGetDefaults: resourcesApi.getDefaults,
+  resourcesSaveDefaults: resourcesApi.saveDefaults,
+  resourcesTest: resourcesApi.test,
   listChatTools: chatApi.listChatTools,
   testChatTool: chatApi.testChatTool,
   chatCompletions: chatApi.chatCompletions,

@@ -223,7 +223,7 @@ type Platform struct {
 	resourceChunkSize int64
 	// resourceMaxBytes caps the total bytes a single resource download may
 	// consume, guarding against adversarial servers that report an
-	// unboundedly large Content-Length. 512 MiB matches cc-connect's own
+	// unboundedly large Content-Length. 512 MiB matches strand's own
 	// inbound attachment cap and is large enough for any plausible bot user
 	// attachment on Feishu/Lark today.
 	resourceMaxBytes int64
@@ -247,7 +247,7 @@ const defaultImageBatchWindow = 500 * time.Millisecond
 // caller-side size limits beyond the per-app upload cap (typically 1 GiB for
 // files; 60 MiB for images), and a misconfigured server can advertise a
 // Content-Length orders of magnitude larger than the actual resource. 512 MiB
-// matches the inbound attachment cap cc-connect applies everywhere else and is
+// matches the inbound attachment cap strand applies everywhere else and is
 // large enough to cover any realistic bot user attachment on Feishu/Lark.
 // Operators that need to download larger files can raise this via
 // resource_max_bytes; the value is clamped to a sane minimum of 1 MiB.
@@ -392,7 +392,7 @@ func newPlatform(name, domain string, opts map[string]any) (core.Platform, error
 
 	// Parse mention_map for outbound bot-to-bot @ resolution.
 	// Maps agent-friendly names (e.g. "Collector-B") to Feishu open_ids,
-	// so that when an agent writes @Collector-B in its reply, cc-connect
+	// so that when an agent writes @Collector-B in its reply, strand
 	// converts it to a native Feishu <at> tag that triggers a notification.
 	var mentionMap map[string]string
 	if mentionMapRaw, ok := opts["mention_map"]; ok {
@@ -1399,7 +1399,7 @@ func (p *Platform) flushImageBatchForSession(sessionKey string) {
 
 // flushImageBatches synchronously dispatches any pending image batches.
 // Intended to be called from Stop() so buffered images aren't lost when
-// cc-connect shuts down.
+// strand shuts down.
 func (p *Platform) flushImageBatches() {
 	p.imageBatchMu.Lock()
 	pending := p.imageBatch
@@ -1768,7 +1768,7 @@ func (p *Platform) onMessage(ctx context.Context, event *larkim.P2MessageReceive
 	// With history sharing enabled, observe ordinary text/post messages only
 	// after the chat-level allow list has admitted the chat. Do this before the
 	// existing mention filter and before allow_from: the chat controls whether
-	// cc-connect may observe the conversation, while allow_from controls who may
+	// strand may observe the conversation, while allow_from controls who may
 	// trigger an agent turn.
 	if p.groupChatHistoryShare && chatType == "group" && !p.groupReplyAll && botOpenID != "" &&
 		!botMentioned && !atEveryone && isGroupHistoryMessageType(msgType) {
@@ -4583,7 +4583,7 @@ func (p *Platform) stopGroupFilterSupervisor() {
 }
 
 // PlatformHealth implements the optional core.PlatformHealth
-// interface so /status, cc-connect doctor, and the management API can
+// interface so /status, strand doctor, and the management API can
 // surface degraded state to operators. Issue #1618.
 func (p *Platform) PlatformHealth() core.PlatformHealthInfo {
 	st := p.snapshotGroupFilter()
@@ -6370,8 +6370,8 @@ func classifyCommandToolDetail(detail string) (title, icon string, ok bool) {
 	if strings.HasPrefix(command, "gh ") || command == "gh" {
 		return "GitHub", "cloud_outlined", true
 	}
-	if strings.HasPrefix(command, "cc-connect ") || command == "cc-connect" {
-		return "cc-connect", "robot_outlined", true
+	if strings.HasPrefix(command, "strand ") || command == "strand" {
+		return "Strand", "robot_outlined", true
 	}
 	if commandHasAnyPrefix(command, "go test", "npm test", "npm run test", "pnpm test", "yarn test", "pytest", "cargo test", "swift test", "xcodebuild test") {
 		return "Run tests", "list-check_outlined", true
@@ -6860,7 +6860,7 @@ func fetchRichCardRemoteImage(ctx context.Context, rawURL string) ([]byte, strin
 	if err != nil {
 		return nil, "", err
 	}
-	req.Header.Set("User-Agent", "cc-connect-feishu-rich-card-image-resolver/1.0")
+	req.Header.Set("User-Agent", "strand-feishu-rich-card-image-resolver/1.0")
 
 	resp, err := client.Do(req)
 	if err != nil {

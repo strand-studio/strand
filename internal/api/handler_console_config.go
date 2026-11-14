@@ -87,14 +87,16 @@ func (s *Service) consoleModels(c *gin.Context) {
 		writeJSON(c, http.StatusOK, []any{})
 		return
 	}
-	list, err := st.AIModel().List(currentUserID(c))
+	userID := currentUserID(c)
+	list, err := st.AIModel().List(userID)
 	if err != nil {
 		writeErr(c, http.StatusInternalServerError, err)
 		return
 	}
+	health, _ := st.Resources().HealthMap(userID, store.ResourceKindModel)
 	out := make([]gin.H, 0, len(list))
 	for _, m := range list {
-		out = append(out, sanitizeModel(m))
+		out = append(out, attachHealthFields(sanitizeModel(m), lookupModelHealth(health, m)))
 	}
 	writeJSON(c, http.StatusOK, out)
 }
@@ -170,16 +172,71 @@ func (s *Service) consoleTestModel(c *gin.Context) {
 			}
 		}
 	}
-	if err := testModelCredentials(modelCredentialInput{
+	start := time.Now()
+	err := testModelCredentials(modelCredentialInput{
 		Provider:        provider,
 		APIKey:          apiKey,
 		CustomAPIURL:    customURL,
 		CustomModelName: customModel,
-	}); err != nil {
-		writeJSON(c, http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+	})
+	latency := time.Since(start).Milliseconds()
+	if st != nil {
+		errMsg := ""
+		if err != nil {
+			errMsg = err.Error()
+		}
+		for _, resourceID := range modelHealthRecordIDs(st, userID, body.ModelID, provider) {
+			_ = st.Resources().RecordTest(userID, store.ResourceKindModel, resourceID, err == nil, latency, errMsg)
+		}
+	}
+	if err != nil {
+		writeJSON(c, http.StatusBadRequest, gin.H{"ok": false, "error": err.Error(), "latency_ms": latency})
 		return
 	}
-	writeJSON(c, http.StatusOK, gin.H{"ok": true})
+	writeJSON(c, http.StatusOK, gin.H{"ok": true, "latency_ms": latency})
+}
+
+// modelHealthRecordIDs returns IDs to stamp resource_health for a model test.
+// Template/provider ids ("openai") and persisted ids ("{user}_openai") both
+// need coverage so overview can resolve health after first-time create.
+func modelHealthRecordIDs(st *store.Store, userID, modelID, provider string) []string {
+	seen := map[string]struct{}{}
+	var out []string
+	add := func(id string) {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return
+		}
+		if _, ok := seen[id]; ok {
+			return
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	add(modelID)
+	add(provider)
+	if st == nil {
+		return out
+	}
+	if modelID != "" {
+		if m, err := st.AIModel().Get(userID, modelID); err == nil && m != nil {
+			add(m.ID)
+			add(m.Provider)
+			return out
+		}
+	}
+	if provider != "" {
+		if list, err := st.AIModel().List(userID); err == nil {
+			for _, m := range list {
+				if m != nil && strings.EqualFold(m.Provider, provider) {
+					add(m.ID)
+					add(m.Provider)
+					break
+				}
+			}
+		}
+	}
+	return out
 }
 
 func (s *Service) consoleUpdateModels(c *gin.Context) {
@@ -230,6 +287,14 @@ func (s *Service) consoleUpdateModels(c *gin.Context) {
 			writeErr(c, http.StatusInternalServerError, err)
 			return
 		}
+		// Persist health under the real row id (create path uses {user}_{provider}).
+		if strings.TrimSpace(cfg.APIKey) == "" {
+			continue
+		}
+		provider := providerFromModelRef(idOrProvider)
+		for _, resourceID := range modelHealthRecordIDs(st, userID, idOrProvider, provider) {
+			_ = st.Resources().RecordTest(userID, store.ResourceKindModel, resourceID, true, 0, "")
+		}
 	}
 	writeJSON(c, http.StatusOK, gin.H{"ok": true})
 }
@@ -240,14 +305,16 @@ func (s *Service) consoleExchanges(c *gin.Context) {
 		writeJSON(c, http.StatusOK, []any{})
 		return
 	}
-	list, err := st.Exchange().List(currentUserID(c))
+	userID := currentUserID(c)
+	list, err := st.Exchange().List(userID)
 	if err != nil {
 		writeErr(c, http.StatusInternalServerError, err)
 		return
 	}
+	health, _ := st.Resources().HealthMap(userID, store.ResourceKindExchange)
 	out := make([]gin.H, 0, len(list))
 	for _, ex := range list {
-		out = append(out, sanitizeExchange(ex))
+		out = append(out, attachHealthFields(sanitizeExchange(ex), health[ex.ID]))
 	}
 	writeJSON(c, http.StatusOK, out)
 }
@@ -381,11 +448,21 @@ func (s *Service) consoleTestExchange(c *gin.Context) {
 			mergeExchangeCredentials(existing, &body.exchangeWriteBody)
 		}
 	}
-	if err := testExchangeCredentials(exchangeCredentialFromBody(userID, body.exchangeWriteBody)); err != nil {
-		writeJSON(c, http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+	start := time.Now()
+	err := testExchangeCredentials(exchangeCredentialFromBody(userID, body.exchangeWriteBody))
+	latency := time.Since(start).Milliseconds()
+	if st != nil && strings.TrimSpace(body.ExchangeID) != "" {
+		errMsg := ""
+		if err != nil {
+			errMsg = err.Error()
+		}
+		_ = st.Resources().RecordTest(userID, store.ResourceKindExchange, body.ExchangeID, err == nil, latency, errMsg)
+	}
+	if err != nil {
+		writeJSON(c, http.StatusBadRequest, gin.H{"ok": false, "error": err.Error(), "latency_ms": latency})
 		return
 	}
-	writeJSON(c, http.StatusOK, gin.H{"ok": true})
+	writeJSON(c, http.StatusOK, gin.H{"ok": true, "latency_ms": latency})
 }
 
 func (s *Service) consoleCreateExchange(c *gin.Context) {
@@ -436,6 +513,7 @@ func (s *Service) consoleCreateExchange(c *gin.Context) {
 		writeErr(c, http.StatusBadRequest, err)
 		return
 	}
+	_ = st.Resources().RecordTest(userID, store.ResourceKindExchange, id, true, 0, "")
 	writeJSON(c, http.StatusOK, gin.H{"id": id})
 }
 
@@ -492,6 +570,7 @@ func (s *Service) consoleUpdateExchanges(c *gin.Context) {
 		if name := strings.TrimSpace(cfg.AccountName); name != "" {
 			_ = st.Exchange().UpdateAccountName(userID, id, name)
 		}
+		_ = st.Resources().RecordTest(userID, store.ResourceKindExchange, id, true, 0, "")
 	}
 	writeJSON(c, http.StatusOK, gin.H{"ok": true})
 }

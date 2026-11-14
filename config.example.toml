@@ -38,17 +38,8 @@ enabled = true
 # alpaca_secret_key = "${ALPACA_SECRET_KEY}"
 # twelve_data_key = "${TWELVE_DATA_KEY}"
 
-# 取消注释以接入消息通道：
-# [[projects]]
-# name = "default"
-# work_dir = "~/.strand/workspace/default"
-# language = "zh"
-#
-#   [projects.agent]
-#   type = "codex"
-#   model = ""
-#
-#   [[projects.platforms]]
-#   type = "weixin"
-#   token = "${WEIXIN_TOKEN}"
-#   allow_from = ""
+# 消息通道请在 Web「设置 → 消息通道」或 CLI 配置（推荐）：
+#   strand messaging workspace --agent codex
+#   strand messaging add --type telegram --name tg1 --set token=…
+#   strand messaging list
+# 旧版 [[projects]] TOML 仍可用，但新绑定以 DB / UI / CLI 为准。

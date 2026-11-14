@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -110,6 +111,8 @@ func providerUsesOpenAICompatibleProbe(provider string) bool {
 
 // probeOpenAICompatibleAuth hits GET /models — validates the key without a
 // paid chat completion and fails fast on network/proxy issues.
+// A bare HTTP 200 is not enough: some captive portals / broken proxies return
+// HTML 200 pages, which previously made invalid keys look "bound".
 func probeOpenAICompatibleAuth(baseURL, apiKey string) error {
 	endpoint := openAICompatibleModelsURL(baseURL)
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
@@ -118,6 +121,7 @@ func probeOpenAICompatibleAuth(baseURL, apiKey string) error {
 	}
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
 
 	client := security.SafeHTTPClient(45 * time.Second)
 	resp, err := client.Do(req)
@@ -125,19 +129,75 @@ func probeOpenAICompatibleAuth(baseURL, apiKey string) error {
 		return annotateAINetworkError(err, baseURL)
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+	// OpenAI /models can exceed tens of KB; we only need enough prefix to
+	// confirm object=list (auth success). Cap keeps memory bounded.
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	trimmed := strings.TrimSpace(string(body))
 	switch {
 	case resp.StatusCode >= 200 && resp.StatusCode < 300:
+		if !looksLikeOpenAIModelsList(trimmed) {
+			preview := trimmed
+			if len(preview) > 180 {
+				preview = preview[:180] + "…"
+			}
+			if preview == "" {
+				preview = resp.Status
+			}
+			return fmt.Errorf("provider returned HTTP %d but not a models list: %s", resp.StatusCode, preview)
+		}
 		return nil
 	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
-		return fmt.Errorf("API key rejected (%d): %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return fmt.Errorf("API key rejected (%d): %s", resp.StatusCode, trimmed)
 	default:
-		msg := strings.TrimSpace(string(body))
+		msg := trimmed
 		if msg == "" {
 			msg = resp.Status
 		}
 		return fmt.Errorf("provider returned %d: %s", resp.StatusCode, msg)
 	}
+}
+
+func looksLikeOpenAIModelsList(body string) bool {
+	body = strings.TrimSpace(body)
+	if body == "" || body[0] != '{' {
+		return false
+	}
+	var payload struct {
+		Object string          `json:"object"`
+		Data   json.RawMessage `json:"data"`
+		Error  json.RawMessage `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(body), &payload); err == nil {
+		if len(payload.Error) > 0 && string(payload.Error) != "null" {
+			return false
+		}
+		if payload.Object == "list" {
+			return true
+		}
+		// Some gateways omit object=list but still return a data array.
+		if len(payload.Data) > 0 && payload.Data[0] == '[' {
+			return true
+		}
+		return false
+	}
+	// Truncated body (LimitReader on a large /models payload): still accept a
+	// clear OpenAI-style list prefix so valid keys are not rejected.
+	return looksLikeTruncatedOpenAIModelsList(body)
+}
+
+func looksLikeTruncatedOpenAIModelsList(body string) bool {
+	lower := strings.ToLower(body)
+	if strings.Contains(lower, `"error"`) && !strings.Contains(lower, `"data"`) {
+		return false
+	}
+	hasList := strings.Contains(body, `"object":"list"`) ||
+		strings.Contains(body, `"object": "list"`)
+	hasData := strings.Contains(body, `"data"`)
+	// object may trail a large data array; truncated data-first payloads still
+	// prove auth when we already see a data array open.
+	hasDataArray := strings.Contains(body, `"data":[`) ||
+		strings.Contains(body, `"data": [`)
+	return (hasList && hasData) || hasDataArray
 }
 
 func annotateAINetworkError(err error, baseURL string) error {

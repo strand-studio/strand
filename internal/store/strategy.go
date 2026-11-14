@@ -906,7 +906,7 @@ type IndicatorConfig struct {
 	ExternalDataSources []ExternalDataSource `json:"external_data_sources,omitempty"`
 
 	// ========== Market-data provider API configuration ==========
-	// Legacy JSON field for the nofxos.ai / claw402 market-data key.
+	// Legacy wire field name kept for config compatibility (quant / Claw402 key).
 	NofxOSAPIKey string `json:"nofxos_api_key,omitempty"`
 
 	// quantitative data sources (capital flow, position changes, price changes)

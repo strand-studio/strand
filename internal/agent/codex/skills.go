@@ -58,7 +58,7 @@ func (a *Agent) ListSkills(ctx context.Context) ([]*core.Skill, error) {
 	}()
 	reader := bufio.NewReader(stdout)
 	if err := rpcRequestOverIO(stdin, reader, 1, "initialize", map[string]any{
-		"clientInfo": map[string]any{"name": "cc-connect-skills", "version": "1"},
+		"clientInfo": map[string]any{"name": "strand-skills", "version": "1"},
 	}, nil); err != nil {
 		return nil, fmt.Errorf("codex: skills initialize: %w", err)
 	}

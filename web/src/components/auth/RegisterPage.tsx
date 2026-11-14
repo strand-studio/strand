@@ -124,7 +124,7 @@ export function RegisterPage() {
         <div className="flex justify-between items-center mb-8">
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-strand-text-muted hover:text-strand-text transition-colors group px-3 py-1.5 rounded-lg border border-transparent hover:border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper backdrop-blur-xs"
+            className="flex items-center gap-2 text-strand-text-muted hover:text-strand-text transition-colors group px-3 py-1.5 rounded-lg border border-transparent hover:border-strand-border bg-strand-bg-deeper backdrop-blur-xs"
           >
             <span className="text-xs font-sans tracking-normal">
               Back to home
@@ -145,7 +145,7 @@ export function RegisterPage() {
           </p>
         </div>
 
-        <div className="bg-strand-bg-lighter backdrop-blur-md border border-[rgba(25,36,52,0.14)] rounded-lg overflow-hidden shadow-lg relative group">
+        <div className="bg-strand-bg-lighter backdrop-blur-md border border-strand-border rounded-lg overflow-hidden shadow-lg relative group">
           <div className="p-6 md:p-8 relative">
             <form onSubmit={handleRegister} className="space-y-5">
               <div>
@@ -156,7 +156,7 @@ export function RegisterPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-strand-bg border border-[rgba(25,36,52,0.14)] rounded-lg px-4 py-3 text-sm focus:border-strand-gold focus:ring-1 focus:ring-strand-gold/50 outline-hidden transition-all placeholder-strand-text-muted text-strand-text font-sans"
+                  className="w-full bg-strand-bg border border-strand-border rounded-lg px-4 py-3 text-sm focus:border-strand-gold focus:ring-1 focus:ring-strand-gold/50 outline-hidden transition-all placeholder-strand-text-muted text-strand-text font-sans"
                   placeholder="you@example.com"
                   required
                 />
@@ -172,7 +172,7 @@ export function RegisterPage() {
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-strand-bg border border-[rgba(25,36,52,0.14)] rounded-lg px-4 py-3 text-sm focus:border-strand-gold focus:ring-1 focus:ring-strand-gold/50 outline-hidden transition-all placeholder-strand-text-muted text-strand-text font-sans pr-10"
+                      className="w-full bg-strand-bg border border-strand-border rounded-lg px-4 py-3 text-sm focus:border-strand-gold focus:ring-1 focus:ring-strand-gold/50 outline-hidden transition-all placeholder-strand-text-muted text-strand-text font-sans pr-10"
                       placeholder="••••••••"
                       required
                     />
@@ -195,7 +195,7 @@ export function RegisterPage() {
                       type={showConfirmPassword ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full bg-strand-bg border border-[rgba(25,36,52,0.14)] rounded-lg px-4 py-3 text-sm focus:border-strand-gold focus:ring-1 focus:ring-strand-gold/50 outline-hidden transition-all placeholder-strand-text-muted text-strand-text font-sans pr-10"
+                      className="w-full bg-strand-bg border border-strand-border rounded-lg px-4 py-3 text-sm focus:border-strand-gold focus:ring-1 focus:ring-strand-gold/50 outline-hidden transition-all placeholder-strand-text-muted text-strand-text font-sans pr-10"
                       placeholder="••••••••"
                       required
                     />
@@ -216,7 +216,7 @@ export function RegisterPage() {
                 </div>
               </div>
 
-              <div className="bg-strand-bg-deeper p-3 rounded-lg border border-[rgba(25,36,52,0.14)]">
+              <div className="bg-strand-bg-deeper p-3 rounded-lg border border-strand-border">
                 <div className="text-[10px] tracking-normal text-strand-text-muted mb-2 font-bold flex items-center gap-2">
                   <div className="w-1 h-1 rounded-full bg-strand-text-muted"></div>
                   Password requirements
@@ -262,7 +262,7 @@ export function RegisterPage() {
                         e.target.value.replace(/[^a-z0-9]/gi, '').toLowerCase()
                       )
                     }
-                    className="w-full bg-strand-bg border border-[rgba(25,36,52,0.14)] rounded-lg px-4 py-3 text-sm focus:border-strand-gold focus:ring-1 focus:ring-strand-gold/50 outline-hidden transition-all placeholder-strand-text-muted text-strand-text font-sans tracking-widest"
+                    className="w-full bg-strand-bg border border-strand-border rounded-lg px-4 py-3 text-sm focus:border-strand-gold focus:ring-1 focus:ring-strand-gold/50 outline-hidden transition-all placeholder-strand-text-muted text-strand-text font-sans tracking-widest"
                     placeholder="XXXXXX"
                     maxLength={6}
                     required={betaMode}

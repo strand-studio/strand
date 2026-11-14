@@ -20,7 +20,7 @@ const (
 
 // I18n provides internationalized messages.
 //
-// All exported methods are safe to call from multiple goroutines: cc-connect
+// All exported methods are safe to call from multiple goroutines: strand
 // fans out platform message handlers concurrently, all of which can call
 // DetectAndSet (writes `detected`) and T / CurrentLang (read `lang`/`detected`)
 // at the same time. Without the mutex `go test -race` flags real data races
@@ -70,7 +70,7 @@ func DetectLanguage(text string) Language {
 //
 // Issue #1655 introduced this helper so the Claude Code agent (which
 // receives the language via opts["language"]) can decode the string
-// without duplicating the switch statement that cmd/cc-connect/main.go
+// without duplicating the switch statement that cmd/strand/strand.go
 // uses for engine construction.
 func NormalizeLanguageString(s string) Language {
 	switch strings.ToLower(s) {
@@ -219,6 +219,7 @@ const (
 	MsgSessionNotFound           MsgKey = "session_not_found"
 	MsgFailedToStartAgentSession MsgKey = "failed_to_start_agent_session"
 	MsgFailedToDeleteSession     MsgKey = "failed_to_delete_session"
+	MsgAgentNotLoggedIn          MsgKey = "agent_not_logged_in"
 	MsgEmptyResponse             MsgKey = "empty_response"
 	MsgPermissionPrompt          MsgKey = "permission_prompt"
 	MsgPermissionAllowed         MsgKey = "permission_allowed"
@@ -690,7 +691,7 @@ const (
 
 	// Agent system-prompt tool sections (Issue #1655). These are appended
 	// to the agent's own system prompt by core/interfaces.go AgentSystemPromptForLang
-	// so that operators running cc-connect with language="zh" see the
+	// so that operators running Strand with language="zh" see the
 	// send / cron / timer / relay tool documentation in their native
 	// language. Translation coverage is en + zh for this PR; additional
 	// languages fall back to en automatically.
@@ -887,6 +888,28 @@ var messages = map[MsgKey]map[Language]string{
 		LangJapanese:           "❌ エラー: Agentセッションの起動に失敗しました",
 		LangSpanish:            "❌ Error: error al iniciar la sesión del agente",
 	},
+	MsgAgentNotLoggedIn: {
+		LangEnglish: "🔐 Claude Code isn’t signed in on the machine running Strand, so I can’t reply yet.\n\n" +
+			"This isn’t a Telegram login — on the Strand host, run:\n" +
+			"`claude auth login`\n\n" +
+			"Or open the web console → Settings → Resources, Test the Agent, then send another message here.",
+		LangChinese: "🔐 Claude Code 还没有在运行 Strand 的机器上登录，所以暂时没法回复你。\n\n" +
+			"这不是 Telegram 里的登录——请到 Strand 所在服务器执行：\n" +
+			"`claude auth login`\n\n" +
+			"也可以打开网页控制台 → 设置 → 资源，对 Agent 点「测试」确认登录成功后，再回来发一条消息。",
+		LangTraditionalChinese: "🔐 Claude Code 尚未在執行 Strand 的機器上登入，所以暫時無法回覆你。\n\n" +
+			"這不是 Telegram 裡的登入——請到 Strand 所在伺服器執行：\n" +
+			"`claude auth login`\n\n" +
+			"也可以開啟網頁控制台 → 設定 → 資源，對 Agent 點「測試」確認登入成功後，再回來發送訊息。",
+		LangJapanese: "🔐 Strand を動かしているマシンで Claude Code に未ログインのため、まだ返信できません。\n\n" +
+			"これは Telegram のログインではありません。Strand ホストで次を実行してください：\n" +
+			"`claude auth login`\n\n" +
+			"または Web コンソール → 設定 → リソース で Agent を「テスト」し、ログイン後にもう一度メッセージを送ってください。",
+		LangSpanish: "🔐 Claude Code no ha iniciado sesión en la máquina donde corre Strand, así que aún no puedo responder.\n\n" +
+			"Esto no es un inicio de sesión de Telegram — en el host de Strand ejecuta:\n" +
+			"`claude auth login`\n\n" +
+			"O abre la consola web → Settings → Resources, prueba el Agent y luego envía otro mensaje aquí.",
+	},
 	MsgFailedToDeleteSession: {
 		LangEnglish:            "❌ %s: %v",
 		LangChinese:            "❌ %s: %v",
@@ -1028,18 +1051,18 @@ var messages = map[MsgKey]map[Language]string{
 		LangSpanish:            "🌐 Idioma actual: **%s**\n\nUso: /lang <en|zh|zh-TW|ja|es|auto>",
 	},
 	MsgUnknownCommand: {
-		LangEnglish:            "`%s` is not a cc-connect command, forwarding to agent...",
-		LangChinese:            "`%s` 不是 cc-connect 命令，已转发给 Agent 处理...",
-		LangTraditionalChinese: "`%s` 不是 cc-connect 命令，已轉發給 Agent 處理...",
-		LangJapanese:           "`%s` は cc-connect のコマンドではありません。エージェントに転送します...",
-		LangSpanish:            "`%s` no es un comando de cc-connect, reenviando al agente...",
+		LangEnglish:            "`%s` is not a Strand command, forwarding to agent...",
+		LangChinese:            "`%s` 不是 Strand 命令，已转发给 Agent 处理...",
+		LangTraditionalChinese: "`%s` 不是 Strand 命令，已轉發給 Agent 處理...",
+		LangJapanese:           "`%s` は Strand のコマンドではありません。エージェントに転送します...",
+		LangSpanish:            "`%s` no es un comando de Strand, reenviando al agente...",
 	},
 	MsgWelcome: {
-		LangEnglish:            "👋 Hi! I'm cc-connect, bridging you to **%s**.\n\nJust send a message to chat with the agent. Type /help to see built-in commands.",
-		LangChinese:            "👋 你好！我是 cc-connect，已为你连接到 **%s**。\n\n直接发送消息即可与 Agent 对话。输入 /help 查看内置命令。",
-		LangTraditionalChinese: "👋 你好！我是 cc-connect，已為你連接到 **%s**。\n\n直接發送訊息即可與 Agent 對話。輸入 /help 查看內建命令。",
-		LangJapanese:           "👋 こんにちは！cc-connect が **%s** に接続しました。\n\nメッセージを送信すればエージェントと会話できます。/help で組み込みコマンド一覧を確認できます。",
-		LangSpanish:            "👋 ¡Hola! Soy cc-connect, conectándote con **%s**.\n\nEnvía un mensaje para chatear con el agente. Usa /help para ver los comandos integrados.",
+		LangEnglish:            "👋 Hi! I'm Strand, bridging you to **%s**.\n\nJust send a message to chat with the agent. Type /help to see built-in commands.",
+		LangChinese:            "👋 你好！我是 Strand，已为你连接到 **%s**。\n\n直接发送消息即可与 Agent 对话。输入 /help 查看内置命令。",
+		LangTraditionalChinese: "👋 你好！我是 Strand，已為你連接到 **%s**。\n\n直接發送訊息即可與 Agent 對話。輸入 /help 查看內建命令。",
+		LangJapanese:           "👋 こんにちは！strand が **%s** に接続しました。\n\nメッセージを送信すればエージェントと会話できます。/help で組み込みコマンド一覧を確認できます。",
+		LangSpanish:            "👋 ¡Hola! Soy Strand, conectándote con **%s**.\n\nEnvía un mensaje para chatear con el agente. Usa /help para ver los comandos integrados.",
 	},
 	MsgHelp: {
 		LangEnglish: "📖 Available Commands\n\n" +
@@ -1076,9 +1099,9 @@ var messages = map[MsgKey]map[Language]string{
 			"/doctor\n  Run system diagnostics\n\n" +
 			"/usage\n  Show account/model quota usage\n\n" +
 			"/upgrade\n  Check for updates and self-update\n\n" +
-			"/restart\n  Restart cc-connect service\n\n" +
+			"/restart\n  Restart Strand service\n\n" +
 			"/status\n  Show system status\n\n" +
-			"/version\n  Show cc-connect version\n\n" +
+			"/version\n  Show Strand version\n\n" +
 			"/whoami\n  Show your User ID (for allow_from / admin_from)\n\n" +
 			"/help\n  Show this help\n\n" +
 			"Tip: Commands support prefix matching, e.g. `/pro l` = `/provider list`, `/sw 2` = `/switch 2`.\n\n" +
@@ -1120,9 +1143,9 @@ var messages = map[MsgKey]map[Language]string{
 			"/doctor\n  运行系统诊断\n\n" +
 			"/usage\n  查看账号/模型限额使用情况\n\n" +
 			"/upgrade\n  检查更新并自动升级\n\n" +
-			"/restart\n  重启 cc-connect 服务\n\n" +
+			"/restart\n  重启 Strand 服务\n\n" +
 			"/status\n  查看系统状态\n\n" +
-			"/version\n  查看 cc-connect 版本\n\n" +
+			"/version\n  查看 Strand 版本\n\n" +
 			"/whoami\n  查看你的 User ID（用于 allow_from / admin_from 配置）\n\n" +
 			"/help\n  显示此帮助\n\n" +
 			"提示：命令支持前缀匹配，如 `/pro l` = `/provider list`，`/sw 2` = `/switch 2`。\n\n" +
@@ -1163,9 +1186,9 @@ var messages = map[MsgKey]map[Language]string{
 			"/doctor\n  執行系統診斷\n\n" +
 			"/usage\n  查看帳號/模型限額使用情況\n\n" +
 			"/upgrade\n  檢查更新並自動升級\n\n" +
-			"/restart\n  重啟 cc-connect 服務\n\n" +
+			"/restart\n  重啟 Strand 服務\n\n" +
 			"/status\n  查看系統狀態\n\n" +
-			"/version\n  查看 cc-connect 版本\n\n" +
+			"/version\n  查看 Strand 版本\n\n" +
 			"/whoami\n  查看你的 User ID（用於 allow_from / admin_from 設定）\n\n" +
 			"/help\n  顯示此說明\n\n" +
 			"提示：命令支持前綴匹配，如 `/pro l` = `/provider list`，`/sw 2` = `/switch 2`。\n\n" +
@@ -1205,9 +1228,9 @@ var messages = map[MsgKey]map[Language]string{
 			"/doctor\n  システム診断を実行\n\n" +
 			"/usage\n  アカウント/モデル使用量を表示\n\n" +
 			"/upgrade\n  アップデートを確認して自動更新\n\n" +
-			"/restart\n  cc-connect サービスを再起動\n\n" +
+			"/restart\n  Strand サービスを再起動\n\n" +
 			"/status\n  システム状態を表示\n\n" +
-			"/version\n  cc-connect のバージョンを表示\n\n" +
+			"/version\n  Strand のバージョンを表示\n\n" +
 			"/whoami\n  あなたの User ID を表示（allow_from / admin_from 設定用）\n\n" +
 			"/help\n  このヘルプを表示\n\n" +
 			"ヒント：コマンドはプレフィックスマッチに対応しています。例: `/pro l` = `/provider list`、`/sw 2` = `/switch 2`。\n\n" +
@@ -1247,9 +1270,9 @@ var messages = map[MsgKey]map[Language]string{
 			"/doctor\n  Ejecutar diagnósticos del sistema\n\n" +
 			"/usage\n  Mostrar uso de cuota de cuenta/modelo\n\n" +
 			"/upgrade\n  Buscar actualizaciones y auto-actualizar\n\n" +
-			"/restart\n  Reiniciar el servicio cc-connect\n\n" +
+			"/restart\n  Reiniciar el servicio Strand\n\n" +
 			"/status\n  Mostrar estado del sistema\n\n" +
-			"/version\n  Mostrar versión de cc-connect\n\n" +
+			"/version\n  Mostrar versión de Strand\n\n" +
 			"/whoami\n  Mostrar tu User ID (para allow_from / admin_from)\n\n" +
 			"/help\n  Mostrar esta ayuda\n\n" +
 			"Consejo: Los comandos admiten coincidencia por prefijo, ej. `/pro l` = `/provider list`, `/sw 2` = `/switch 2`.\n\n" +
@@ -1259,11 +1282,11 @@ var messages = map[MsgKey]map[Language]string{
 			"Modos de permisos: default / edit / plan / yolo",
 	},
 	MsgHelpTitle: {
-		LangEnglish:            "cc-connect Help",
-		LangChinese:            "cc-connect 帮助",
-		LangTraditionalChinese: "cc-connect 說明",
-		LangJapanese:           "cc-connect ヘルプ",
-		LangSpanish:            "cc-connect Ayuda",
+		LangEnglish:            "Strand Help",
+		LangChinese:            "Strand 帮助",
+		LangTraditionalChinese: "Strand 說明",
+		LangJapanese:           "Strand ヘルプ",
+		LangSpanish:            "Strand Ayuda",
 	},
 	MsgHelpSessionSection: {
 		LangEnglish: "**Session Management**\n" +
@@ -1559,11 +1582,11 @@ var messages = map[MsgKey]map[Language]string{
 		LangSpanish:            "Este agente no soporta el cambio de proveedor.",
 	},
 	MsgProviderNone: {
-		LangEnglish:            "No provider configured. Using agent's default environment.\n\nAdd providers in `config.toml` or via `cc-connect provider add`.",
-		LangChinese:            "未配置 Provider，使用 Agent 默认环境。\n\n可在 `config.toml` 中添加或使用 `cc-connect provider add` 命令。",
-		LangTraditionalChinese: "未配置 Provider，使用 Agent 預設環境。\n\n可在 `config.toml` 中新增或使用 `cc-connect provider add` 命令。",
-		LangJapanese:           "プロバイダが設定されていません。エージェントのデフォルト環境を使用します。\n\n`config.toml` または `cc-connect provider add` でプロバイダを追加してください。",
-		LangSpanish:            "No hay proveedor configurado. Usando el entorno predeterminado del agente.\n\nAgregue proveedores en `config.toml` o mediante `cc-connect provider add`.",
+		LangEnglish:            "No provider configured. Using agent's default environment.\n\nAdd providers in `config.toml` or via `strand provider add`.",
+		LangChinese:            "未配置 Provider，使用 Agent 默认环境。\n\n可在 `config.toml` 中添加或使用 `strand provider add` 命令。",
+		LangTraditionalChinese: "未配置 Provider，使用 Agent 預設環境。\n\n可在 `config.toml` 中新增或使用 `strand provider add` 命令。",
+		LangJapanese:           "プロバイダが設定されていません。エージェントのデフォルト環境を使用します。\n\n`config.toml` または `strand provider add` でプロバイダを追加してください。",
+		LangSpanish:            "No hay proveedor configurado. Usando el entorno predeterminado del agente.\n\nAgregue proveedores en `config.toml` o mediante `strand provider add`.",
 	},
 	MsgProviderCurrent: {
 		LangEnglish:            "📡 Active provider: **%s**\n\nUse `/provider list` to see all, `/provider switch <name>` to switch.",
@@ -1580,11 +1603,11 @@ var messages = map[MsgKey]map[Language]string{
 		LangSpanish:            "📡 Proveedores\n\n",
 	},
 	MsgProviderListEmpty: {
-		LangEnglish:            "No providers configured.\n\nAdd providers in `config.toml` or via `cc-connect provider add`.",
-		LangChinese:            "未配置 Provider。\n\n可在 `config.toml` 中添加或使用 `cc-connect provider add` 命令。",
-		LangTraditionalChinese: "未配置 Provider。\n\n可在 `config.toml` 中新增或使用 `cc-connect provider add` 命令。",
-		LangJapanese:           "プロバイダが設定されていません。\n\n`config.toml` または `cc-connect provider add` で追加してください。",
-		LangSpanish:            "No hay proveedores configurados.\n\nAgregue proveedores en `config.toml` o mediante `cc-connect provider add`.",
+		LangEnglish:            "No providers configured.\n\nAdd providers in `config.toml` or via `strand provider add`.",
+		LangChinese:            "未配置 Provider。\n\n可在 `config.toml` 中添加或使用 `strand provider add` 命令。",
+		LangTraditionalChinese: "未配置 Provider。\n\n可在 `config.toml` 中新增或使用 `strand provider add` 命令。",
+		LangJapanese:           "プロバイダが設定されていません。\n\n`config.toml` または `strand provider add` で追加してください。",
+		LangSpanish:            "No hay proveedores configurados.\n\nAgregue proveedores en `config.toml` o mediante `strand provider add`.",
 	},
 	MsgProviderSwitchHint: {
 		LangEnglish:            "`/provider switch <name>` to switch | `/provider clear` to reset",
@@ -1885,11 +1908,11 @@ var messages = map[MsgKey]map[Language]string{
 		LangSpanish:            "El programador de tareas no está disponible.",
 	},
 	MsgCronUsage: {
-		LangEnglish:            "Usage:\n/cron add <min> <hour> <day> <month> <weekday> <prompt>\n/cron list\n/cron exec <id>\n/cron del <id>\n/cron enable <id> · /cron disable <id>\n/cron mute <id> · /cron unmute <id>\n/cron setup — write cc-connect instructions to agent memory file",
-		LangChinese:            "用法：\n/cron add <分> <时> <日> <月> <周> <任务描述>\n/cron list\n/cron exec <id> 立即执行\n/cron del <id>\n/cron enable <id> · /cron disable <id>\n/cron mute <id> · /cron unmute <id> 静音/取消静音\n/cron setup — 将 cc-connect 指令写入 agent 记忆文件",
-		LangTraditionalChinese: "用法：\n/cron add <分> <時> <日> <月> <週> <任務描述>\n/cron list\n/cron exec <id> 立即執行\n/cron del <id>\n/cron enable <id> · /cron disable <id>\n/cron mute <id> · /cron unmute <id> 靜音/取消靜音\n/cron setup — 將 cc-connect 指令寫入 agent 記憶檔案",
-		LangJapanese:           "使い方:\n/cron add <分> <時> <日> <月> <曜日> <タスク内容>\n/cron list\n/cron exec <id> 今すぐ実行\n/cron del <id>\n/cron enable <id> · /cron disable <id>\n/cron mute <id> · /cron unmute <id> ミュート/解除\n/cron setup — cc-connect の指示をエージェントのメモリファイルに書き込む",
-		LangSpanish:            "Uso:\n/cron add <min> <hora> <día> <mes> <día_semana> <tarea>\n/cron list\n/cron exec <id>\n/cron del <id>\n/cron enable <id> · /cron disable <id>\n/cron mute <id> · /cron unmute <id>\n/cron setup — escribir las instrucciones de cc-connect en el archivo de memoria del agente",
+		LangEnglish:            "Usage:\n/cron add <min> <hour> <day> <month> <weekday> <prompt>\n/cron list\n/cron exec <id>\n/cron del <id>\n/cron enable <id> · /cron disable <id>\n/cron mute <id> · /cron unmute <id>\n/cron setup — write Strand instructions to agent memory file",
+		LangChinese:            "用法：\n/cron add <分> <时> <日> <月> <周> <任务描述>\n/cron list\n/cron exec <id> 立即执行\n/cron del <id>\n/cron enable <id> · /cron disable <id>\n/cron mute <id> · /cron unmute <id> 静音/取消静音\n/cron setup — 将 Strand 指令写入 agent 记忆文件",
+		LangTraditionalChinese: "用法：\n/cron add <分> <時> <日> <月> <週> <任務描述>\n/cron list\n/cron exec <id> 立即執行\n/cron del <id>\n/cron enable <id> · /cron disable <id>\n/cron mute <id> · /cron unmute <id> 靜音/取消靜音\n/cron setup — 將 Strand 指令寫入 agent 記憶檔案",
+		LangJapanese:           "使い方:\n/cron add <分> <時> <日> <月> <曜日> <タスク内容>\n/cron list\n/cron exec <id> 今すぐ実行\n/cron del <id>\n/cron enable <id> · /cron disable <id>\n/cron mute <id> · /cron unmute <id> ミュート/解除\n/cron setup — Strand の指示をエージェントのメモリファイルに書き込む",
+		LangSpanish:            "Uso:\n/cron add <min> <hora> <día> <mes> <día_semana> <tarea>\n/cron list\n/cron exec <id>\n/cron del <id>\n/cron enable <id> · /cron disable <id>\n/cron mute <id> · /cron unmute <id>\n/cron setup — escribir las instrucciones de Strand en el archivo de memoria del agente",
 	},
 	MsgCronAddUsage: {
 		LangEnglish:            "Usage: /cron add <min> <hour> <day> <month> <weekday> <prompt>\nExample: /cron add 0 6 * * * Collect GitHub trending data and send me a summary",
@@ -2226,7 +2249,7 @@ var messages = map[MsgKey]map[Language]string{
 	},
 
 	MsgStatusTitle: {
-		LangEnglish: "cc-connect Status\n\n" +
+		LangEnglish: "Strand Status\n\n" +
 			"Project: %s\n" +
 			"Agent: %s\n" +
 			"Work Dir: %s\n" +
@@ -2234,7 +2257,7 @@ var messages = map[MsgKey]map[Language]string{
 			"Uptime: %s\n" +
 			"Language: %s\n" +
 			"%s" + "%s" + "%s" + "%s" + "%s" + "%s",
-		LangChinese: "cc-connect 状态\n\n" +
+		LangChinese: "Strand 状态\n\n" +
 			"项目: %s\n" +
 			"Agent: %s\n" +
 			"工作目录: %s\n" +
@@ -2242,7 +2265,7 @@ var messages = map[MsgKey]map[Language]string{
 			"运行时间: %s\n" +
 			"语言: %s\n" +
 			"%s" + "%s" + "%s" + "%s" + "%s" + "%s",
-		LangTraditionalChinese: "cc-connect 狀態\n\n" +
+		LangTraditionalChinese: "Strand 狀態\n\n" +
 			"項目: %s\n" +
 			"Agent: %s\n" +
 			"工作目錄: %s\n" +
@@ -2250,7 +2273,7 @@ var messages = map[MsgKey]map[Language]string{
 			"運行時間: %s\n" +
 			"語言: %s\n" +
 			"%s" + "%s" + "%s" + "%s" + "%s" + "%s",
-		LangJapanese: "cc-connect ステータス\n\n" +
+		LangJapanese: "Strand ステータス\n\n" +
 			"プロジェクト: %s\n" +
 			"エージェント: %s\n" +
 			"作業ディレクトリ: %s\n" +
@@ -2258,7 +2281,7 @@ var messages = map[MsgKey]map[Language]string{
 			"稼働時間: %s\n" +
 			"言語: %s\n" +
 			"%s" + "%s" + "%s" + "%s" + "%s" + "%s",
-		LangSpanish: "Estado de cc-connect\n\n" +
+		LangSpanish: "Estado de Strand\n\n" +
 			"Proyecto: %s\n" +
 			"Agente: %s\n" +
 			"Directorio: %s\n" +
@@ -2627,8 +2650,8 @@ var messages = map[MsgKey]map[Language]string{
 		LangJapanese: "次へ →", LangSpanish: "Siguiente →",
 	},
 	MsgCardTitleStatus: {
-		LangEnglish: "cc-connect Status", LangChinese: "cc-connect 状态", LangTraditionalChinese: "cc-connect 狀態",
-		LangJapanese: "cc-connect ステータス", LangSpanish: "Estado de cc-connect",
+		LangEnglish: "Strand Status", LangChinese: "Strand 状态", LangTraditionalChinese: "Strand 狀態",
+		LangJapanese: "Strand ステータス", LangSpanish: "Estado de Strand",
 	},
 	MsgCardTitleLanguage: {
 		LangEnglish: "Language", LangChinese: "语言", LangTraditionalChinese: "語言",
@@ -3074,18 +3097,18 @@ var messages = map[MsgKey]map[Language]string{
 		LangSpanish:            "\n✅ %d aprobados  ⚠️ %d advertencias  ❌ %d fallidos",
 	},
 	MsgRestarting: {
-		LangEnglish:            "🔄 Restarting cc-connect...",
-		LangChinese:            "🔄 正在重启 cc-connect...",
-		LangTraditionalChinese: "🔄 正在重啟 cc-connect...",
-		LangJapanese:           "🔄 cc-connect を再起動中...",
-		LangSpanish:            "🔄 Reiniciando cc-connect...",
+		LangEnglish:            "🔄 Restarting Strand...",
+		LangChinese:            "🔄 正在重启 Strand...",
+		LangTraditionalChinese: "🔄 正在重啟 Strand...",
+		LangJapanese:           "🔄 Strand を再起動中...",
+		LangSpanish:            "🔄 Reiniciando Strand...",
 	},
 	MsgRestartSuccess: {
-		LangEnglish:            "✅ cc-connect restarted successfully.",
-		LangChinese:            "✅ cc-connect 重启成功。",
-		LangTraditionalChinese: "✅ cc-connect 重啟成功。",
-		LangJapanese:           "✅ cc-connect の再起動が完了しました。",
-		LangSpanish:            "✅ cc-connect se reinició correctamente.",
+		LangEnglish:            "✅ Strand restarted successfully.",
+		LangChinese:            "✅ Strand 重启成功。",
+		LangTraditionalChinese: "✅ Strand 重啟成功。",
+		LangJapanese:           "✅ Strand の再起動が完了しました。",
+		LangSpanish:            "✅ Strand se reinició correctamente.",
 	},
 	MsgUpgradeChecking: {
 		LangEnglish:            "🔍 Checking for updates...",
@@ -3570,25 +3593,25 @@ var messages = map[MsgKey]map[Language]string{
 		LangSpanish:            "✅ ¡Enlace exitoso! Grupo actual: %s\n\nAhora puede pedir a este bot que consulte a %s.\nEjemplo: \"Pregunta a %s sobre ...\"",
 	},
 	MsgRelaySetupHint: {
-		LangEnglish:            "\n\n⚠️ This agent does not auto-inject cc-connect instructions.\nPlease run `/bind setup` or `/cron setup` to write instructions to %s.",
-		LangChinese:            "\n\n⚠️ 当前 agent 不会自动注入 cc-connect 指令。\n请运行 `/bind setup` 或 `/cron setup` 将指令写入 %s。",
-		LangTraditionalChinese: "\n\n⚠️ 當前 agent 不會自動注入 cc-connect 指令。\n請執行 `/bind setup` 或 `/cron setup` 將指令寫入 %s。",
-		LangJapanese:           "\n\n⚠️ このエージェントは cc-connect の指示を自動注入しません。\n`/bind setup` または `/cron setup` を実行して %s に指示を書き込んでください。",
-		LangSpanish:            "\n\n⚠️ Este agente no inyecta automáticamente las instrucciones de cc-connect.\nEjecute `/bind setup` o `/cron setup` para escribirlas en %s.",
+		LangEnglish:            "\n\n⚠️ This agent does not auto-inject strand instructions.\nPlease run `/bind setup` or `/cron setup` to write instructions to %s.",
+		LangChinese:            "\n\n⚠️ 当前 agent 不会自动注入 strand 指令。\n请运行 `/bind setup` 或 `/cron setup` 将指令写入 %s。",
+		LangTraditionalChinese: "\n\n⚠️ 當前 agent 不會自動注入 strand 指令。\n請執行 `/bind setup` 或 `/cron setup` 將指令寫入 %s。",
+		LangJapanese:           "\n\n⚠️ このエージェントは Strand の指示を自動注入しません。\n`/bind setup` または `/cron setup` を実行して %s に指示を書き込んでください。",
+		LangSpanish:            "\n\n⚠️ Este agente no inyecta automáticamente las instrucciones de Strand.\nEjecute `/bind setup` o `/cron setup` para escribirlas en %s.",
 	},
 	MsgRelaySetupOK: {
-		LangEnglish:            "✅ cc-connect instructions written to %s\nThe agent can now use relay, cron, and attachment send-back.",
-		LangChinese:            "✅ cc-connect 指令已写入 %s\nagent 现在可以使用中继、定时任务和附件回传功能了。",
-		LangTraditionalChinese: "✅ cc-connect 指令已寫入 %s\nagent 現在可以使用中繼、定時任務和附件回傳功能了。",
-		LangJapanese:           "✅ cc-connect の指示を %s に書き込みました。\nエージェントがリレー、cron、添付ファイル返送を使えるようになりました。",
-		LangSpanish:            "✅ Instrucciones de cc-connect escritas en %s\nEl agente ahora puede usar relay, cron y reenvío de adjuntos.",
+		LangEnglish:            "✅ strand instructions written to %s\nThe agent can now use relay, cron, and attachment send-back.",
+		LangChinese:            "✅ strand 指令已写入 %s\nagent 现在可以使用中继、定时任务和附件回传功能了。",
+		LangTraditionalChinese: "✅ strand 指令已寫入 %s\nagent 現在可以使用中繼、定時任務和附件回傳功能了。",
+		LangJapanese:           "✅ Strand の指示を %s に書き込みました。\nエージェントがリレー、cron、添付ファイル返送を使えるようになりました。",
+		LangSpanish:            "✅ Instrucciones de strand escritas en %s\nEl agente ahora puede usar relay, cron y reenvío de adjuntos.",
 	},
 	MsgRelaySetupExists: {
-		LangEnglish:            "ℹ️ cc-connect instructions already exist in %s — no changes made.",
-		LangChinese:            "ℹ️ cc-connect 指令已存在于 %s 中，无需重复写入。",
-		LangTraditionalChinese: "ℹ️ cc-connect 指令已存在於 %s 中，無需重複寫入。",
-		LangJapanese:           "ℹ️ cc-connect の指示は既に %s に存在します。変更はありません。",
-		LangSpanish:            "ℹ️ Las instrucciones de cc-connect ya existen en %s — sin cambios.",
+		LangEnglish:            "ℹ️ strand instructions already exist in %s — no changes made.",
+		LangChinese:            "ℹ️ strand 指令已存在于 %s 中，无需重复写入。",
+		LangTraditionalChinese: "ℹ️ strand 指令已存在於 %s 中，無需重複寫入。",
+		LangJapanese:           "ℹ️ Strand の指示は既に %s に存在します。変更はありません。",
+		LangSpanish:            "ℹ️ Las instrucciones de Strand ya existen en %s — sin cambios.",
 	},
 	MsgRelaySetupNoMemory: {
 		LangEnglish:            "❌ This agent does not support instruction files.",
@@ -3598,18 +3621,18 @@ var messages = map[MsgKey]map[Language]string{
 		LangSpanish:            "❌ Este agente no soporta archivos de instrucciones.",
 	},
 	MsgSetupNative: {
-		LangEnglish:            "✅ This agent natively supports cc-connect instructions — no setup needed.",
-		LangChinese:            "✅ 当前 agent 已原生支持 cc-connect 指令，无需额外配置。",
-		LangTraditionalChinese: "✅ 當前 agent 已原生支持 cc-connect 指令，無需額外配置。",
-		LangJapanese:           "✅ このエージェントは cc-connect の指示をネイティブサポートしています。セットアップ不要です。",
-		LangSpanish:            "✅ Este agente soporta nativamente las instrucciones de cc-connect — no se necesita configuración.",
+		LangEnglish:            "✅ This agent natively supports strand instructions — no setup needed.",
+		LangChinese:            "✅ 当前 agent 已原生支持 strand 指令，无需额外配置。",
+		LangTraditionalChinese: "✅ 當前 agent 已原生支持 strand 指令，無需額外配置。",
+		LangJapanese:           "✅ このエージェントは Strand の指示をネイティブサポートしています。セットアップ不要です。",
+		LangSpanish:            "✅ Este agente soporta nativamente las instrucciones de Strand — no se necesita configuración.",
 	},
 	MsgCronSetupOK: {
-		LangEnglish:            "✅ cc-connect instructions written to %s\nThe agent can now use relay, cron, and attachment send-back.",
-		LangChinese:            "✅ cc-connect 指令已写入 %s\nagent 现在可以使用中继、定时任务和附件回传功能了。",
-		LangTraditionalChinese: "✅ cc-connect 指令已寫入 %s\nagent 現在可以使用中繼、定時任務和附件回傳功能了。",
-		LangJapanese:           "✅ cc-connect の指示を %s に書き込みました。\nエージェントがリレー、cron、添付ファイル返送を使えるようになりました。",
-		LangSpanish:            "✅ Instrucciones de cc-connect escritas en %s\nEl agente ahora puede usar relay, cron y reenvío de adjuntos.",
+		LangEnglish:            "✅ strand instructions written to %s\nThe agent can now use relay, cron, and attachment send-back.",
+		LangChinese:            "✅ strand 指令已写入 %s\nagent 现在可以使用中继、定时任务和附件回传功能了。",
+		LangTraditionalChinese: "✅ strand 指令已寫入 %s\nagent 現在可以使用中繼、定時任務和附件回傳功能了。",
+		LangJapanese:           "✅ Strand の指示を %s に書き込みました。\nエージェントがリレー、cron、添付ファイル返送を使えるようになりました。",
+		LangSpanish:            "✅ Instrucciones de strand escritas en %s\nEl agente ahora puede usar relay, cron y reenvío de adjuntos.",
 	},
 	MsgSearchUsage: {
 		LangEnglish:            "Usage: /search <keyword>\nSearch sessions by name or ID.",
@@ -3823,11 +3846,11 @@ var messages = map[MsgKey]map[Language]string{
 		LangSpanish:            "Buscar actualizaciones y auto-actualizar",
 	},
 	MsgBuiltinCmdRestart: {
-		LangEnglish:            "Restart cc-connect service",
-		LangChinese:            "重启 cc-connect 服务",
-		LangTraditionalChinese: "重啟 cc-connect 服務",
-		LangJapanese:           "cc-connect サービスを再起動",
-		LangSpanish:            "Reiniciar el servicio cc-connect",
+		LangEnglish:            "Restart Strand service",
+		LangChinese:            "重启 Strand 服务",
+		LangTraditionalChinese: "重啟 Strand 服務",
+		LangJapanese:           "Strand サービスを再起動",
+		LangSpanish:            "Reiniciar el servicio Strand",
 	},
 	MsgBuiltinCmdStatus: {
 		LangEnglish:            "Show system status",
@@ -3844,11 +3867,11 @@ var messages = map[MsgKey]map[Language]string{
 		LangSpanish:            "Mostrar uso de cuota de cuenta/modelo",
 	},
 	MsgBuiltinCmdVersion: {
-		LangEnglish:            "Show cc-connect version",
-		LangChinese:            "查看 cc-connect 版本",
-		LangTraditionalChinese: "查看 cc-connect 版本",
-		LangJapanese:           "cc-connect のバージョンを表示",
-		LangSpanish:            "Mostrar versión de cc-connect",
+		LangEnglish:            "Show Strand version",
+		LangChinese:            "查看 Strand 版本",
+		LangTraditionalChinese: "查看 Strand 版本",
+		LangJapanese:           "Strand のバージョンを表示",
+		LangSpanish:            "Mostrar versión de Strand",
 	},
 	MsgBuiltinCmdHelp: {
 		LangEnglish:            "Show this help",
@@ -4304,55 +4327,55 @@ var messages = map[MsgKey]map[Language]string{
 		LangEnglish: `### Send generated images, files, or voice messages back to the user
 When you generate a local image or file that should be sent to the user, use:
 
-  cc-connect send --image /absolute/path/to/image.png
-  cc-connect send --file /absolute/path/to/report.pdf
-  cc-connect send --file /absolute/path/to/report.pdf --image /absolute/path/to/chart.png
+  strand send --image /absolute/path/to/image.png
+  strand send --file /absolute/path/to/report.pdf
+  strand send --file /absolute/path/to/report.pdf --image /absolute/path/to/chart.png
 
 You may repeat --image / --file multiple times. Use this only for generated attachments that need to be delivered to the user.
 If you include --message, do not repeat the exact same sentence again in your normal reply, because your normal reply is also delivered automatically.
 
 When sending an audio (mp3/wav/m4a/ogg/opus) or video (mp4/mov/webm) clip that should render inline as a native voice bubble or video player — instead of as a generic file download — use the dedicated flags:
 
-  cc-connect send --audio /absolute/path/to/clip.mp3
-  cc-connect send --video /absolute/path/to/demo.mp4
+  strand send --audio /absolute/path/to/clip.mp3
+  strand send --video /absolute/path/to/demo.mp4
 
-These render as native media on platforms that support it (e.g. Feishu voice bubbles, Telegram voice messages). cc-connect transparently transcodes audio to the platform's preferred codec (e.g. opus for Feishu). On platforms without dedicated audio/video support cc-connect automatically falls back to the file-attachment path so delivery is preserved. Do NOT downgrade the user's request to --file when they explicitly asked for audio or video.
+These render as native media on platforms that support it (e.g. Feishu voice bubbles, Telegram voice messages). strand transparently transcodes audio to the platform's preferred codec (e.g. opus for Feishu). On platforms without dedicated audio/video support strand automatically falls back to the file-attachment path so delivery is preserved. Do NOT downgrade the user's request to --file when they explicitly asked for audio or video.
 
 When the user explicitly asks you to synthesize speech from text, use:
 
-  cc-connect send --tts "text to speak"
+  strand send --tts "text to speak"
 
-After cc-connect send --tts (or --audio) succeeds, reply only with NO_REPLY unless the user also asked for a visible text confirmation. This prevents sending an extra text message after the voice message.`,
+After strand send --tts (or --audio) succeeds, reply only with NO_REPLY unless the user also asked for a visible text confirmation. This prevents sending an extra text message after the voice message.`,
 		LangChinese: `### 把生成的图片、文件、语音消息回发给用户
 当你生成了需要发送给用户的本地图片或文件时,使用:
 
-  cc-connect send --image /absolute/path/to/image.png
-  cc-connect send --file /absolute/path/to/report.pdf
-  cc-connect send --file /absolute/path/to/report.pdf --image /absolute/path/to/chart.png
+  strand send --image /absolute/path/to/image.png
+  strand send --file /absolute/path/to/report.pdf
+  strand send --file /absolute/path/to/report.pdf --image /absolute/path/to/chart.png
 
 可以重复使用 --image / --file。仅在需要把生成的附件投递到用户时使用这个命令。
 如果同时使用了 --message,不要在正常回复里再说一遍完全相同的句子,因为正常回复本身也会自动发送给用户。
 
 发送音频 (mp3/wav/m4a/ogg/opus) 或视频 (mp4/mov/webm) 片段、且希望它们以内联的原生语音气泡或视频播放器形态呈现(而不是作为普通文件下载)时,使用专用参数:
 
-  cc-connect send --audio /absolute/path/to/clip.mp3
-  cc-connect send --video /absolute/path/to/demo.mp4
+  strand send --audio /absolute/path/to/clip.mp3
+  strand send --video /absolute/path/to/demo.mp4
 
-这些参数会在支持原生媒体的平台上渲染为原生形态(例如飞书的语音气泡、Telegram 的语音消息)。cc-connect 会自动把音频转码为平台偏好的编码(例如飞书的 opus)。在不支持专用音视频的平台,cc-connect 会自动回退到文件附件路径以保证投递成功。当用户明确要求 audio/video 时,不要把请求降级为 --file。
+这些参数会在支持原生媒体的平台上渲染为原生形态(例如飞书的语音气泡、Telegram 的语音消息)。strand 会自动把音频转码为平台偏好的编码(例如飞书的 opus)。在不支持专用音视频的平台,strand 会自动回退到文件附件路径以保证投递成功。当用户明确要求 audio/video 时,不要把请求降级为 --file。
 
 当用户明确要求把文字合成为语音时,使用:
 
-  cc-connect send --tts "要朗读的文字"
+  strand send --tts "要朗读的文字"
 
-cc-connect send --tts(或 --audio)成功之后,除非用户同时要求可见的文字确认,否则只回复 NO_REPLY,避免在语音消息后再发一条文字消息。`,
+strand send --tts(或 --audio)成功之后,除非用户同时要求可见的文字确认,否则只回复 NO_REPLY,避免在语音消息后再发一条文字消息。`,
 	},
 	MsgAgentCronToolPrompt: {
 		LangEnglish: `### Scheduled tasks: when to use /cron vs /timer
 
-cc-connect has TWO distinct scheduling commands. Picking the wrong one creates a confusing UX for the user.
+strand has TWO distinct scheduling commands. Picking the wrong one creates a confusing UX for the user.
 
   ┌──────────────────────────────┬─────────────────────────────┐
-  │ Use cc-connect cron …        │ Use cc-connect timer …      │
+  │ Use strand cron …        │ Use strand timer …      │
   ├──────────────────────────────┼─────────────────────────────┤
   │ Recurring schedule           │ One-shot delay / one-time   │
   │ "每天/每周/每小时"            │ "X 分钟后/小时后/明天"        │
@@ -4368,7 +4391,7 @@ When telling the user the task is scheduled, tell them which command to use to v
 ### Scheduled tasks (cron) — RECURRING
 When the user asks you to do something on a schedule (e.g. "每天早上6点帮我总结GitHub trending"), use the Bash tool to run:
 
-  cc-connect cron add --cron "<min> <hour> <day> <month> <weekday>" --prompt "<task description>" --desc "<short label>"
+  strand cron add --cron "<min> <hour> <day> <month> <weekday>" --prompt "<task description>" --desc "<short label>"
 
 Environment variables CC_PROJECT and CC_SESSION_KEY are already set, so you do NOT need to specify --project or --session-key.
 
@@ -4378,18 +4401,18 @@ Optional flags:
   --exec <command>          run a shell command directly instead of --prompt
 
 Examples:
-  cc-connect cron add --cron "0 6 * * *" --prompt "Collect GitHub trending repos and send a summary" --desc "Daily GitHub Trending"
-  cc-connect cron add --cron "0 9 * * 1" --prompt "Generate a weekly project status report" --desc "Weekly Report"
-  cc-connect cron add --cron "*/2 * * * *" --exec "ipconfig" --session-mode new-per-run --desc "Every 2 min ipconfig"
+  strand cron add --cron "0 6 * * *" --prompt "Collect GitHub trending repos and send a summary" --desc "Daily GitHub Trending"
+  strand cron add --cron "0 9 * * 1" --prompt "Generate a weekly project status report" --desc "Weekly Report"
+  strand cron add --cron "*/2 * * * *" --exec "ipconfig" --session-mode new-per-run --desc "Every 2 min ipconfig"
 
 You can also list, inspect, run, edit, or delete cron jobs:
-  cc-connect cron list
-  cc-connect cron info <job-id> [field]
-  cc-connect cron exec <job-id>
-  cc-connect cron edit <job-id> <field> <value>
-  cc-connect cron del <job-id>
+  strand cron list
+  strand cron info <job-id> [field]
+  strand cron exec <job-id>
+  strand cron edit <job-id> <field> <value>
+  strand cron del <job-id>
 
-When changing an existing job, first run ` + "`cc-connect cron info <job-id>`" + ` to inspect the current values, then use ` + "`cron edit`" + ` for only the field(s) the user asked to change.
+When changing an existing job, first run ` + "`strand cron info <job-id>`" + ` to inspect the current values, then use ` + "`cron edit`" + ` for only the field(s) the user asked to change.
 Use ` + "`cron exec <job-id>`" + ` to run an existing scheduled task immediately; this is different from the ` + "`--exec <command>`" + ` flag used when creating a shell-command cron job.
 Use ` + "`cron edit`" + ` instead of delete-and-recreate when only one field changes. Do not delete and recreate a job unless the user explicitly asks to replace it.
 Common editable fields:
@@ -4399,19 +4422,19 @@ Common editable fields:
   enabled       true / false  (pause without deleting)
   mute          true / false  (silence all messages)
   timeout_mins  integer minutes (0 = unlimited)
-Run ` + "`cc-connect cron edit --help`" + ` for the full field list.
+Run ` + "`strand cron edit --help`" + ` for the full field list.
 
 Examples:
-  cc-connect cron exec abc123
-  cc-connect cron edit abc123 cron_expr "0 9 * * *"
-  cc-connect cron edit abc123 enabled false
-  cc-connect cron edit abc123 prompt "Updated daily summary task"`,
+  strand cron exec abc123
+  strand cron edit abc123 cron_expr "0 9 * * *"
+  strand cron edit abc123 enabled false
+  strand cron edit abc123 prompt "Updated daily summary task"`,
 		LangChinese: `### 定时任务:什么时候用 /cron,什么时候用 /timer
 
-cc-connect 有两个不同的调度命令。选错会让用户感到很困惑。
+strand 有两个不同的调度命令。选错会让用户感到很困惑。
 
   ┌──────────────────────────────┬─────────────────────────────┐
-  │ 使用 cc-connect cron …       │ 使用 cc-connect timer …     │
+  │ 使用 strand cron …       │ 使用 strand timer …     │
   ├──────────────────────────────┼─────────────────────────────┤
   │ 周期性调度                    │ 单次延时 / 一次性任务         │
   │ "每天/每周/每小时"            │ "X 分钟后/小时后/明天"        │
@@ -4427,7 +4450,7 @@ cc-connect 有两个不同的调度命令。选错会让用户感到很困惑。
 ### 周期任务 (cron) — RECURRING
 当用户让你做周期性任务时(例如"每天早上6点帮我总结GitHub trending"),用 Bash 工具执行:
 
-  cc-connect cron add --cron "<分> <时> <日> <月> <星期>" --prompt "<任务描述>" --desc "<简短标签>"
+  strand cron add --cron "<分> <时> <日> <月> <星期>" --prompt "<任务描述>" --desc "<简短标签>"
 
 环境变量 CC_PROJECT 和 CC_SESSION_KEY 已经设置好,你不需要传 --project 或 --session-key。
 
@@ -4437,18 +4460,18 @@ cc-connect 有两个不同的调度命令。选错会让用户感到很困惑。
   --exec <command>          直接跑 shell 命令而不是 --prompt
 
 示例:
-  cc-connect cron add --cron "0 6 * * *" --prompt "汇总 GitHub trending 仓库并发摘要" --desc "每日 GitHub Trending"
-  cc-connect cron add --cron "0 9 * * 1" --prompt "生成本周项目状态报告" --desc "每周报告"
-  cc-connect cron add --cron "*/2 * * * *" --exec "ipconfig" --session-mode new-per-run --desc "每 2 分钟跑 ipconfig"
+  strand cron add --cron "0 6 * * *" --prompt "汇总 GitHub trending 仓库并发摘要" --desc "每日 GitHub Trending"
+  strand cron add --cron "0 9 * * 1" --prompt "生成本周项目状态报告" --desc "每周报告"
+  strand cron add --cron "*/2 * * * *" --exec "ipconfig" --session-mode new-per-run --desc "每 2 分钟跑 ipconfig"
 
 你也可以列出、检查、立即执行、修改或删除 cron 任务:
-  cc-connect cron list
-  cc-connect cron info <job-id> [字段]
-  cc-connect cron exec <job-id>
-  cc-connect cron edit <job-id> <字段> <新值>
-  cc-connect cron del <job-id>
+  strand cron list
+  strand cron info <job-id> [字段]
+  strand cron exec <job-id>
+  strand cron edit <job-id> <字段> <新值>
+  strand cron del <job-id>
 
-修改现有任务时,先用 ` + "`cc-connect cron info <job-id>`" + ` 看当前值,再用 ` + "`cron edit`" + ` 只改用户要求改的字段。
+修改现有任务时,先用 ` + "`strand cron info <job-id>`" + ` 看当前值,再用 ` + "`cron edit`" + ` 只改用户要求改的字段。
 用 ` + "`cron exec <job-id>`" + ` 立即执行已存在的调度任务;这和创建 shell 任务时用的 ` + "`--exec <command>`" + ` 参数不同。
 只有修改一个字段时,用 ` + "`cron edit`" + ` 而不是删除后重建。除非用户明确要求替换任务,不要先删再建。
 常用可编辑字段:
@@ -4458,13 +4481,13 @@ cc-connect 有两个不同的调度命令。选错会让用户感到很困惑。
   enabled       true / false(暂停而不删除)
   mute          true / false(静默所有消息)
   timeout_mins  整数分钟(0 = 不限)
-完整字段列表见 ` + "`cc-connect cron edit --help`" + `。
+完整字段列表见 ` + "`strand cron edit --help`" + `。
 
 示例:
-  cc-connect cron exec abc123
-  cc-connect cron edit abc123 cron_expr "0 9 * * *"
-  cc-connect cron edit abc123 enabled false
-  cc-connect cron edit abc123 prompt "更新后的每日摘要任务"`,
+  strand cron exec abc123
+  strand cron edit abc123 cron_expr "0 9 * * *"
+  strand cron edit abc123 enabled false
+  strand cron edit abc123 prompt "更新后的每日摘要任务"`,
 	},
 	MsgAgentTimerToolPrompt: {
 		LangEnglish: `### One-shot timers (timer) — ONE-TIME DELAY
@@ -4472,7 +4495,7 @@ When the user asks you to do something AFTER A DELAY or AT A SPECIFIC FUTURE TIM
 (e.g. "两小时后帮我检查PR", "3 分钟后看下系统负载", "明天早上 9 点提醒我"),
 use the Bash tool to run:
 
-  cc-connect timer add --delay <duration> --prompt "<task description>"
+  strand timer add --delay <duration> --prompt "<task description>"
 
 IMPORTANT: do NOT use cron for one-shot delays. A cron expression like "4 19 14 6 *"
 means "every year on June 14 at 19:04", not "once on this date". Cron has no built-in
@@ -4491,19 +4514,19 @@ Optional flags:
   --mute                    suppress all messages (start notification + result)
 
 Examples:
-  cc-connect timer add --delay 2h --prompt "Check PR status" --desc "PR check"
-  cc-connect timer add --delay 30m --exec "df -h" --desc "Disk check"
-  cc-connect timer add --at "2026-05-16T09:00" --prompt "Morning standup reminder"
+  strand timer add --delay 2h --prompt "Check PR status" --desc "PR check"
+  strand timer add --delay 30m --exec "df -h" --desc "Disk check"
+  strand timer add --at "2026-05-16T09:00" --prompt "Morning standup reminder"
 
 You can also list or cancel timers:
-  cc-connect timer list
-  cc-connect timer del <timer-id>`,
+  strand timer list
+  strand timer del <timer-id>`,
 		LangChinese: `### 一次性延时 (timer) — ONE-TIME DELAY
 当用户让你在一段延时之后或在某个未来时刻做某事时
 (例如"两小时后帮我检查PR"、"3 分钟后看下系统负载"、"明天早上 9 点提醒我"),
 用 Bash 工具执行:
 
-  cc-connect timer add --delay <时长> --prompt "<任务描述>"
+  strand timer add --delay <时长> --prompt "<任务描述>"
 
 重要:不要用 cron 跑单次延时。形如 "4 19 14 6 *" 的 cron 表达式
 意思是"每年 6 月 14 日 19:04"而不是"这一天跑一次"。cron 没有内建"只跑一次"模式 ——
@@ -4521,19 +4544,19 @@ You can also list or cancel timers:
   --mute                    静默所有消息(开始通知和结果)
 
 示例:
-  cc-connect timer add --delay 2h --prompt "检查 PR 状态" --desc "PR 检查"
-  cc-connect timer add --delay 30m --exec "df -h" --desc "磁盘检查"
-  cc-connect timer add --at "2026-05-16T09:00" --prompt "早会提醒"
+  strand timer add --delay 2h --prompt "检查 PR 状态" --desc "PR 检查"
+  strand timer add --delay 30m --exec "df -h" --desc "磁盘检查"
+  strand timer add --at "2026-05-16T09:00" --prompt "早会提醒"
 
 你也可以列出或取消 timer:
-  cc-connect timer list
-  cc-connect timer del <timer-id>`,
+  strand timer list
+  strand timer del <timer-id>`,
 	},
 	MsgAgentRelayToolPrompt: {
 		LangEnglish: `### Bot-to-bot relay
 When you need to communicate with another bot (e.g. ask another AI agent a question), use:
 
-  cc-connect relay send --to <target_project> "<message>"
+  strand relay send --to <target_project> "<message>"
 
 IMPORTANT: <target_project> must be the EXACT project name from the /bind command output.
 Do NOT guess or modify the name — use it exactly as shown (e.g. "gemini", not "gemini-bot").
@@ -4545,7 +4568,7 @@ Environment variables CC_PROJECT and CC_SESSION_KEY are already set, so the rela
 		LangChinese: `### Bot 之间转发 (relay)
 当需要和另一个 bot 通信(例如向另一个 AI agent 提问)时,使用:
 
-  cc-connect relay send --to <目标项目名> "<消息>"
+  strand relay send --to <目标项目名> "<消息>"
 
 重要:<目标项目名> 必须是 /bind 命令输出里的 EXACT 项目名。
 不要猜测或修改名字 —— 完全照搬显示值(例如 "gemini" 而不是 "gemini-bot")。

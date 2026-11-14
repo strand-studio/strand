@@ -85,9 +85,9 @@ func prependCodexPromptPreamble(prompt string, preamble string) string {
 	}
 	prompt = strings.TrimSpace(prompt)
 	if prompt == "" {
-		return "Before answering, follow these project-level instructions for this cc-connect session. They are not user content.\n\n" + preamble
+		return "Before answering, follow these project-level instructions for this strand session. They are not user content.\n\n" + preamble
 	}
-	return "Before answering, follow these project-level instructions for this cc-connect session. They are not user content.\n\n" + preamble + "\n\n---\n\nUser message:\n" + prompt
+	return "Before answering, follow these project-level instructions for this strand session. They are not user content.\n\n" + preamble + "\n\n---\n\nUser message:\n" + prompt
 }
 
 func newCodexSession(ctx context.Context, cliBin string, cliExtraArgs []string, workDir, model, effort, mode, resumeID, baseURL string, extraEnv []string, modelProvider string, systemPrompt string, appendPrompt string) (*codexSession, error) {
@@ -243,7 +243,7 @@ func (cs *codexSession) stageImages(prompt string, images []core.ImageAttachment
 		return prompt, nil, nil
 	}
 
-	imgDir := filepath.Join(cs.workDir, ".cc-connect", "images")
+	imgDir := filepath.Join(cs.workDir, ".strand", "images")
 	if err := os.MkdirAll(imgDir, 0o755); err != nil {
 		return "", nil, fmt.Errorf("codexSession: create image dir: %w", err)
 	}
@@ -302,7 +302,7 @@ func (cs *codexSession) buildExecArgs(prompt string, imagePaths []string) []stri
 	// overrides though, so on resume we express sandbox via `-c sandbox_mode=...`
 	// instead. Without this, every resume would fail with:
 	//   error: unexpected argument '--sandbox' found
-	// — and the user would silently lose their session on every cc-connect
+	// — and the user would silently lose their session on every strand
 	// restart / idle reset.
 	//
 	// For real interactive approvals (suggest semantics), users must opt into
@@ -777,8 +777,8 @@ func loadCodexRuntimeConfig(ctx context.Context, cliBin string, cliExtraArgs []s
 
 	if err := rpcRequestOverIO(stdin, reader, nextID, "initialize", map[string]any{
 		"clientInfo": map[string]any{
-			"name":    "cc-connect-codex-runtime-config",
-			"title":   "CC Connect Codex Runtime Config",
+			"name":    "strand-codex-runtime-config",
+			"title":   "Strand Codex Runtime Config",
 			"version": "0.1.0",
 		},
 	}, nil); err != nil {

@@ -255,13 +255,15 @@ function loadScript(url: string): Promise<void> {
   return promise
 }
 
-/** Prefer TradingView charting_library; fall back to Strand lightweight shim. */
+/** Prefer TradingView charting_library when vendored; otherwise use Strand shim. */
 export function loadPlanningChart(): Promise<void> {
-  return loadScript('/charting_library/charting_library.standalone.js')
-    .then(() => loadScript('/planning/chart.js?v=' + __PLANNING_CHART_VERSION__))
-    .catch(() =>
-      loadScript('/planning/chart-fallback.js?v=' + __PLANNING_CHART_VERSION__)
-    )
+  const version = __PLANNING_CHART_VERSION__
+  if (__HAS_CHARTING_LIBRARY__) {
+    return loadScript('/charting_library/charting_library.standalone.js')
+      .then(() => loadScript('/planning/chart.js?v=' + version))
+      .catch(() => loadScript('/planning/chart-fallback.js?v=' + version))
+  }
+  return loadScript('/planning/chart-fallback.js?v=' + version)
 }
 export function expired(p: Plan, clock = Date.now()) {
   return Date.parse(p.expires) <= clock

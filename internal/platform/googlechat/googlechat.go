@@ -1,10 +1,10 @@
-// Package googlechat connects cc-connect to Google Chat.
+// Package googlechat connects strand to Google Chat.
 //
 // Google Chat has no native socket/long-poll inbound for self-hosted apps
 // without a public endpoint. This adapter uses a registered Google Chat app
 // whose Cloud Pub/Sub connection publishes Chat events to a topic:
 //
-//   - receive: cc-connect pulls the Chat app's Pub/Sub subscription with a
+//   - receive: strand pulls the Chat app's Pub/Sub subscription with a
 //     streaming pull (no public IP needed). The subscription is fixed, so there
 //     is no Workspace Events subscription expiry or per-restart resource leak.
 //   - send:    the Chat app replies via the Chat REST API

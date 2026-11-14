@@ -19,6 +19,8 @@ var Strand = []*cli.Command{
 	StopCommand,
 	StatusCommand,
 	ConfigCommand,
+	MessagingCommand,
+	ResourceCommand,
 	DaemonCommand,
 }
 

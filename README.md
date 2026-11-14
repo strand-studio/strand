@@ -1,25 +1,27 @@
-# Strand（牵发）
+# Strand
 
-开源、自托管的 **AI 交易终端**：在你自己的机器上跑控制台与 API——密钥与资金不交给第三方托管。
+[English](README.md) | [中文](README.zh-CN.md)
 
-**会交易的智能，但控制权在你手里。**
+Open-source, **self-hosted AI trading terminal**. Run the console and API on your own machine — keys and funds stay with you, not a third-party custodian.
 
-| 你想… | 去哪 |
-|------|------|
-| 看多所永续行情 / 标的详情 | **Markets**（无需登录） |
-| 对比市价 / 限价 / Ladder / TWAP 再确认 | **Trade** |
-| 跟随 Claw402 方向板自动交易 | **Autopilot** |
-| 盯权益、持仓、硬闸与决策 | **Portfolio** |
-| 调杠杆 / 日亏等硬风控 | **Strategy** |
-| 公开对比 opt-in 实例 | **Leaderboard**（可匿名浏览） |
+**Intelligence that can trade. Control that stays yours.**
 
-支持 **Hyperliquid**、**Binance**、**Bybit**、**OKX**、**Gate**、**Bitget** 等；AI 手续费钱包（Base USDC / Claw402）与交易保证金分离。
+| You want to… | Go to |
+|--------------|--------|
+| Browse multi-exchange perps / symbol detail | **Markets** (no login) |
+| Compare market / limit / Ladder / TWAP, then confirm | **Trade** |
+| Follow the Claw402 direction board automatically | **Autopilot** |
+| Watch equity, positions, hard gates, decisions | **Portfolio** |
+| Tune leverage / daily-loss hard risk | **Strategy** |
+| Compare opt-in instances publicly | **Leaderboard** (browse anonymously) |
 
-> 风险提示：加密与杠杆交易有本金损失风险。Strand 是软件工具，不是投资建议，不保证收益。
+Exchanges: **Hyperliquid**, **Binance**, **Bybit**, **OKX**, **Gate**, **Bitget**, and more. AI fee wallet (Base USDC / Claw402) is separate from trading margin.
+
+> **Risk:** Crypto and leveraged trading can lose principal. Strand is software, not investment advice, and does not guarantee returns. See [DISCLAIMER.md](./DISCLAIMER.md).
 
 ---
 
-## 架构一览
+## Architecture
 
 ```
 ┌─────────────────┐     /api/*      ┌──────────────────────┐
@@ -28,43 +30,44 @@
 │  :3000          │                 │  :8080               │
 └─────────────────┘                 └──────────┬───────────┘
                                                │
-                    Markets public tickers / klines
+                    Public tickers / klines
                     Hyperliquid · CEX · Claw402 / Vergex
                     SQLite (default) or Postgres
 ```
 
-本地开发时 Vite 把 `/api` 代理到 `localhost:8080`。Docker Compose 用 nginx 做同样的事。
+Locally, Vite proxies `/api` to `localhost:8080`. Docker Compose uses nginx the same way.
 
 ---
 
-## 快速开始（本地）
+## Quick start (local)
 
-### 依赖
+### Requirements
 
-- **Go 1.26+**（SQLite 驱动需要 CGO / 系统 sqlite）
-- **Node 20+** 与 **pnpm**（Web）
-- 可选：能访问交易所公开行情与（若使用）OpenAI 兼容端点的出网；受限网络可设 `HTTPS_PROXY`
+- **Go 1.26+** (SQLite driver needs CGO / system sqlite)
+- **Node 20+** and **pnpm** (web)
+- Outbound network for exchange public data and (if used) OpenAI-compatible endpoints; set `HTTPS_PROXY` on restricted networks
 
-### 1. 初始化配置
+### 1. Initialize config
 
 ```bash
 go run ./cmd/strand config init
-# 写入 ~/.strand/config.toml 与 ~/.strand/.env（含 JWT_SECRET / STRAND_API_TOKEN）
+# writes ~/.strand/config.toml and ~/.strand/.env (JWT_SECRET / STRAND_API_TOKEN)
 ```
 
-也可参考仓库内 [`config.example.toml`](./config.example.toml) 与 [`.env.example`](./.env.example)。
+See also [`config.example.toml`](./config.example.toml) and [`.env.example`](./.env.example).
 
-### 2. 启动 API
+### 2. Start the API
 
 ```bash
 go run ./cmd/strand start
-# 或: ./start.sh
-# 或: make api
+# or: ./start.sh
+# or: make api
+# background: strand start -d   then   strand status / strand stop
 ```
 
-默认监听 `http://127.0.0.1:8080`。
+Default: `http://127.0.0.1:8080`. Run `strand --help` for the full CLI.
 
-### 3. 启动 Web
+### 3. Start the web console
 
 ```bash
 cd web
@@ -72,71 +75,90 @@ pnpm install
 pnpm run dev
 ```
 
-打开 `http://127.0.0.1:3000` → 注册 / 登录 → **Markets** 看行情，或按 [LAUNCH_CHECKLIST](./docs/LAUNCH_CHECKLIST.md) 走 Autopilot。
+Open `http://127.0.0.1:3000` → register / sign in → **Markets**, or follow [LAUNCH_CHECKLIST](./docs/LAUNCH_CHECKLIST.md) for Autopilot.
 
-常用 Make 目标：`make help`、`make deps`、`make build`、`make web`、`make docker-up`。
+Useful Make targets: `make help`, `make deps`, `make build`, `make web`, `make docker-up`.
+
+---
+
+## CLI cheatsheet
+
+```bash
+strand --help                 # overview + quick start
+strand config init [--dir …]  # create config + .env
+strand config show            # masked config dump
+strand start [-d]             # foreground or detach
+strand stop | status
+strand daemon logs -n 100
+strand messaging supported
+strand messaging add --type telegram --name tg1 --set token=…
+strand resource test model <id> --token "$STRAND_API_TOKEN"
+```
+
+Global flag: `--config` / `-c` / `$STRAND_CONFIG`.
 
 ---
 
 ## Docker
 
-完整栈（API + Web）：
+Full stack (API + Web):
 
 ```bash
 docker compose up --build
 ```
 
-| 服务 | 地址 |
-|------|------|
-| Web 控制台 | http://127.0.0.1:3000 |
-| API（也可直连） | http://127.0.0.1:8080 |
+| Service | URL |
+|---------|-----|
+| Web console | http://127.0.0.1:3000 |
+| API (direct) | http://127.0.0.1:8080 |
 
-- 数据卷：`strand-data` → 容器内 `/data`（配置、SQLite、运行状态）
-- 首次启动若无配置，入口脚本会执行 `strand config init --dir /data`
-- 仅构建 API：`docker build -t strand-api -f docker/Dockerfile.backend .`
-- 仅构建前端：`docker build -t strand-web -f docker/Dockerfile.frontend .`
+- Volume `strand-data` → `/data` (config, SQLite, runtime)
+- First boot without config runs `strand config init --dir /data`
+- API only: `docker build -t strand-api -f docker/Dockerfile.backend .`
+- Web only: `docker build -t strand-web -f docker/Dockerfile.frontend .`
 
-出网需代理时，在 compose 或环境中设置 `HTTPS_PROXY` / `HTTP_PROXY`（见 [OPS_RUNBOOK](./docs/OPS_RUNBOOK.md)）。
+For outbound proxy, set `HTTPS_PROXY` / `HTTP_PROXY` in compose or the environment ([OPS_RUNBOOK](./docs/OPS_RUNBOOK.md)).
 
 ---
 
-## 产品能力（当前）
+## Product surface (current)
 
-- **Markets**：多所 USDT 永续实时板；点击进入 `/markets/:exchange/:symbol` 详情（K 线、换算、表现、同所热门）
-- **Trade**：人机共策下单规划
-- **Autopilot**：Claw402 方向板 + Preflight + 硬风控闸门
+- **Markets** — multi-venue USDT-perp board; `/markets/:exchange/:symbol` detail (candles, convert, peers)
+- **Trade** — human-in-the-loop execution planning
+- **Autopilot** — Claw402 board + Preflight + hard risk gates
 - **Portfolio / Strategy / Leaderboard / Chat / Help / Settings**
-- 公开接口示例：`GET /api/symbols`、`GET /api/klines`、`GET /api/competition`（无需登录）
+- Public examples: `GET /api/symbols`, `GET /api/klines`, `GET /api/competition` (no login)
 
-顶栏与路由说明：[docs/WEB_TOP_NAV.md](./docs/WEB_TOP_NAV.md)  
-产品介绍：[docs/PRODUCT_INTRO.md](./docs/PRODUCT_INTRO.md)  
-控制台 API：[docs/WEB_API.md](./docs/WEB_API.md)  
-运维：[docs/OPS_RUNBOOK.md](./docs/OPS_RUNBOOK.md)
+In-app guides: console **Help** (`/help`).  
+Nav map: [docs/WEB_TOP_NAV.md](./docs/WEB_TOP_NAV.md)  
+Product intro (中文): [docs/PRODUCT_INTRO.md](./docs/PRODUCT_INTRO.md)  
+Console API: [docs/WEB_API.md](./docs/WEB_API.md)  
+Ops: [docs/OPS_RUNBOOK.md](./docs/OPS_RUNBOOK.md) · Security: [SECURITY.md](./SECURITY.md)
 
 ---
 
-## 仓库结构
+## Repository layout
 
 ```
-cmd/strand/          CLI 入口（config / start / stop / status …）
-internal/            API、交易、行情、策略、消息通道等
-web/                 React 控制台（Vite + pnpm）
-docker/              Dockerfile.backend / frontend、nginx、entrypoint
-docs/                产品与运维文档
-config.example.toml  配置示例
-.env.example         密钥环境变量示例
+cmd/strand/          CLI entry (config / start / stop / status / messaging …)
+internal/            API, trading, market data, strategy, messaging bridges
+web/                 React console (Vite + pnpm)
+docker/              Dockerfiles, nginx, entrypoint
+docs/                Product & ops docs
+config.example.toml  Config sample
+.env.example         Secret env sample
 ```
 
 ---
 
-## 安全与密钥
+## Security & secrets
 
-- **不要**把真实 `.env`、钱包私钥、交易所 API Key 提交进 Git（已在 `.gitignore`）
-- Hyperliquid Agent 可交易、不可提现；CEX Key 建议关闭提现并做 IP 白名单
-- 备份默认不含密钥；含密钥导出须离线保管（Settings / [OPS_RUNBOOK](./docs/OPS_RUNBOOK.md)）
+- **Do not** commit real `.env`, wallet keys, or exchange API keys (see `.gitignore`)
+- Hyperliquid Agent can trade but cannot withdraw; CEX keys should disable withdrawal and use IP allowlists
+- Default backups omit secrets; secret exports must be stored offline (Settings / [OPS_RUNBOOK](./docs/OPS_RUNBOOK.md))
 
 ---
 
-## 许可证
+## License
 
 [MIT](./LICENSE) © Strand

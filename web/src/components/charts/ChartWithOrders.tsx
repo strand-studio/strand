@@ -9,6 +9,8 @@ import {
   createSeriesMarkers,
 } from 'lightweight-charts'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useTheme } from '../../contexts/ThemeContext'
+import { chartSurfaceColors } from '../../lib/themeColors'
 import { httpClient } from '../../lib/httpClient'
 import { t } from '../../i18n/translations'
 
@@ -48,6 +50,7 @@ export function ChartWithOrders({
   exchange = 'binance', // Default to binance
 }: ChartWithOrdersProps) {
   const { language } = useLanguage()
+  const { resolvedTheme } = useTheme()
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
@@ -246,25 +249,26 @@ export function ChartWithOrders({
 
     try {
       // Create chart
+      const surface = chartSurfaceColors()
       const chart = createChart(chartContainerRef.current, {
         width: chartContainerRef.current.clientWidth,
         height: height,
         layout: {
-          background: { color: '#f6f8fc' },
-          textColor: '#192434',
+          background: { color: surface.background },
+          textColor: surface.text,
         },
         grid: {
-          vertLines: { color: 'rgba(25,36,52, 0.08)' },
-          horzLines: { color: 'rgba(25,36,52, 0.08)' },
+          vertLines: { color: surface.grid },
+          horzLines: { color: surface.grid },
         },
         crosshair: {
           mode: 1, // Normal crosshair
         },
         rightPriceScale: {
-          borderColor: 'rgba(25,36,52, 0.14)',
+          borderColor: surface.border,
         },
         timeScale: {
-          borderColor: 'rgba(25,36,52, 0.14)',
+          borderColor: surface.border,
           timeVisible: true,
           secondsVisible: false,
         },
@@ -340,7 +344,7 @@ export function ChartWithOrders({
       console.error('[ChartWithOrders] Failed to initialize chart:', err)
       setError('Failed to initialize chart')
     }
-  }, [height])
+  }, [height, resolvedTheme])
 
   // Load data
   useEffect(() => {
@@ -531,21 +535,21 @@ export function ChartWithOrders({
   return (
     <div
       className="relative"
-      style={{ background: '#f6f8fc', borderRadius: '8px', overflow: 'hidden' }}
+      style={{ background: 'var(--background)', borderRadius: '8px', overflow: 'hidden' }}
     >
       {/* Title bar */}
       <div
         className="flex items-center justify-between p-4"
-        style={{ borderBottom: '1px solid rgba(25,36,52, 0.14)' }}
+        style={{ borderBottom: '1px solid var(--panel-border)' }}
       >
         <div className="flex items-center gap-3">
           <span className="text-xl">📈</span>
-          <h3 className="text-lg font-bold" style={{ color: '#192434' }}>
+          <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
             {symbol} {interval}
           </h3>
         </div>
         {loading && (
-          <div className="text-sm" style={{ color: '#707e92' }}>
+          <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
             {t('chartWithOrders.loading', language)}
           </div>
         )}
@@ -567,7 +571,7 @@ export function ChartWithOrders({
               background: 'rgba(255,255,255, 0.95)',
               border: '1px solid rgba(41,91,232, 0.3)',
               borderRadius: '6px',
-              color: '#192434',
+              color: 'var(--text-primary)',
               fontSize: '12px',
               fontFamily: 'monospace',
               pointerEvents: 'none',
@@ -579,7 +583,7 @@ export function ChartWithOrders({
             <div
               style={{
                 marginBottom: '6px',
-                color: '#295be8',
+                color: 'var(--strand-gold)',
                 fontWeight: 'bold',
                 fontSize: '11px',
               }}
@@ -602,22 +606,22 @@ export function ChartWithOrders({
                 fontSize: '11px',
               }}
             >
-              <span style={{ color: '#707e92' }}>O:</span>
-              <span style={{ color: '#192434', fontWeight: '500' }}>
+              <span style={{ color: 'var(--text-tertiary)' }}>O:</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>
                 {tooltipData.open?.toFixed(2)}
               </span>
 
-              <span style={{ color: '#707e92' }}>H:</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>H:</span>
               <span style={{ color: '#2E8B57', fontWeight: '500' }}>
                 {tooltipData.high?.toFixed(2)}
               </span>
 
-              <span style={{ color: '#707e92' }}>L:</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>L:</span>
               <span style={{ color: '#D6433A', fontWeight: '500' }}>
                 {tooltipData.low?.toFixed(2)}
               </span>
 
-              <span style={{ color: '#707e92' }}>C:</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>C:</span>
               <span
                 style={{
                   color:
@@ -651,8 +655,8 @@ export function ChartWithOrders({
       <div
         className="flex items-center gap-4 p-4 text-xs"
         style={{
-          borderTop: '1px solid rgba(25,36,52, 0.14)',
-          color: '#707e92',
+          borderTop: '1px solid var(--panel-border)',
+          color: 'var(--text-tertiary)',
         }}
       >
         <div className="flex items-center gap-2">

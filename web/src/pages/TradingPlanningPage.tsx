@@ -23,6 +23,7 @@ import {
   streamPlanning,
 } from '../lib/planning'
 import { formatRequestError } from '../lib/requestErrors'
+import { selectableResources } from '../lib/preferredModel'
 import { preservePlanningPlans } from '../lib/planningPresentation'
 import { PlanningDataPanel } from '../components/planning/PlanningDataPanel'
 import { FrontierMarkets } from '../components/planning/FrontierMarkets'
@@ -91,7 +92,7 @@ interface ChatMessage {
 export function TradingPlanningPage() {
   const { language } = useLanguage()
   const [searchParams, setSearchParams] = useSearchParams()
-  const chartSeedConsumed = useRef(false)
+  const chartSeedConsumed = useRef('')
   const [observation, setObservation] = useState<AccountObservation | null>(
     null
   )
@@ -414,13 +415,17 @@ export function TradingPlanningPage() {
       api.getModelConfigs(),
     ])
     if (!active.current) return
-    const supported = ex.filter(
-      (a) =>
-        a.enabled &&
-        !a.testnet &&
-        frontierVenues.includes(a.exchange_type || '')
+    const supported = selectableResources(
+      ex.filter(
+        (a) =>
+          a.enabled &&
+          !a.testnet &&
+          frontierVenues.includes(a.exchange_type || '')
+      )
     )
-    const enabled = ai.filter((m) => m.enabled && m.has_api_key)
+    const enabled = selectableResources(
+      ai.filter((m) => m.enabled && m.has_api_key)
+    )
     setAccounts(supported)
     setModels(enabled)
     setModelID((old) =>
@@ -545,23 +550,34 @@ export function TradingPlanningPage() {
     setBuilder(true)
   }
 
-  // Chart-to-order / Markets deep-link: seed symbol+side and open compile path.
+  // Chart-to-order / Markets deep-link: seed symbol+venue and open compile path.
+  // Re-seed when the query changes (navigating Markets → Trade while already on /trade).
   useEffect(() => {
-    if (chartSeedConsumed.current || !configsLoaded) return
+    if (!configsLoaded) return
     const symbolQ = searchParams.get('symbol')
     const sideQ = searchParams.get('side')
-    const venueQ = searchParams.get('venue')
+    const venueQ =
+      searchParams.get('venue') || searchParams.get('exchange') || ''
     const compile = searchParams.get('compile') === '1'
     const chartOrder = searchParams.get('chart_order') === '1'
     if (!symbolQ && !compile && !chartOrder) return
-    chartSeedConsumed.current = true
+    const seedKey = `${symbolQ || ''}|${venueQ}|${compile ? 1 : 0}|${chartOrder ? 1 : 0}|${sideQ || ''}|${searchParams.get('notional') || ''}`
+    if (chartSeedConsumed.current === seedKey) return
+    chartSeedConsumed.current = seedKey
+    const nextVenue = venueQ || venue
     if (venueQ) {
       requestedVenue.current = venueQ
       setVenue(venueQ)
       marketChosen.current = true
+      const nextAccount =
+        preferredTradingAccount(accounts, venueQ) ||
+        accounts.find((a) => a.exchange_type === venueQ)?.id ||
+        ''
+      setExchangeID(nextAccount)
+      if (nextAccount) rememberAccount(venueQ, nextAccount)
     }
     if (symbolQ) {
-      const native = symbolQ.toUpperCase()
+      const native = nativeMarket(symbolQ, nextVenue)
       setSymbol(native)
       setSymbolInput(native)
       marketChosen.current = true
@@ -588,7 +604,7 @@ export function TradingPlanningPage() {
       next.delete(k)
     )
     setSearchParams(next, { replace: true })
-  }, [searchParams, configsLoaded, modelID, symbol, setSearchParams])
+  }, [searchParams, configsLoaded, modelID, symbol, venue, accounts, setSearchParams])
   async function send(text = instruction, compareStructures = false) {
     if (busy || !text.trim()) return
     if (
@@ -1144,9 +1160,12 @@ export function TradingPlanningPage() {
           </form>
         </div>
         <span className="planning-live">
-          <i /> Live trading · You’re in control
+          <i /> Planning · review before anything is sent
         </span>
       </div>
+      <p className="frontier-notice" role="status">
+        {t('pageTradeLiveNotice', language)}
+      </p>
       <FrontierSetup
         models={models}
         modelID={modelID}
@@ -1985,10 +2004,10 @@ export function TradingPlanningPage() {
               </button>
               <button
                 className="planning-primary"
-                disabled={busy || expired(review, clock)}
-                onClick={approveAndExecute}
+                disabled
+                title={t('pageTradeLiveNotice', language)}
               >
-                Confirm and place live order
+                Live submit unavailable
               </button>
             </div>
           </section>

@@ -115,7 +115,7 @@ type Platform struct {
 	// their incoming messages. MAX omits recipient.chat_id in callbacks, so
 	// without this a button press would open a parallel "max:0:<user>" session.
 	//
-	// Process-local by design, like dedup: it assumes a single cc-connect
+	// Process-local by design, like dedup: it assumes a single strand
 	// instance per bot token, which is also what MAX long-polling requires (two
 	// pollers on one token split updates between them). Running several
 	// instances behind a load balancer would let one learn the chat_id while
@@ -144,7 +144,7 @@ type Platform struct {
 //	                                               # X-Max-Bot-Api-Secret header
 //	                                               # of every webhook POST (?s= also
 //	                                               # accepted for manual testing)
-//	webhook_resubscribe_interval = "5m"            # optional, default 5m; cc-connect
+//	webhook_resubscribe_interval = "5m"            # optional, default 5m; strand
 //	                                               # periodically re-POSTs the
 //	                                               # subscription because MAX has been
 //	                                               # observed to silently drop it

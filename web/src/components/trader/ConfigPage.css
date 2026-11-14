@@ -443,6 +443,43 @@
   text-align: center;
   font-size: 12px;
 }
+.config-resources-hub {
+  margin-top: 8px;
+  padding: 22px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: var(--panel-bg);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.config-resources-hub h3 {
+  font-size: 17px;
+  font-weight: 550;
+  letter-spacing: -0.3px;
+  margin: 7px 0 8px;
+}
+.config-resources-hub p {
+  color: var(--text-secondary);
+  max-width: 42rem;
+  margin: 0;
+}
+.config-resources-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.config-resources-actions > button:not(.config-primary) {
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--panel-bg-hover);
+  color: var(--text-primary);
+  font-size: 12px;
+}
 .config-next {
   margin-top: 22px;
   padding: 22px;

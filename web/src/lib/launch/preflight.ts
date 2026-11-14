@@ -61,8 +61,8 @@ function isHyperliquidVenue(check: LaunchCheck): boolean {
 }
 
 /**
- * Maps a failing check to the guided-setup anchor that fixes it. The traders
- * page opens the matching modal/section from the `?setup=` query param.
+ * Maps a failing check to the guided-setup anchor that fixes it.
+ * Autopilot / Trade deep-links send users to Resources (or Welcome for Claw402).
  */
 export function setupTargetForCheck(check: LaunchCheck): SetupTarget | null {
   switch (check.id) {

@@ -14,7 +14,10 @@ export function FAQSidebar({
   return (
     <nav
       className="sticky top-[104px] h-[calc(100vh-120px)] overflow-y-auto pr-2"
-      style={{ scrollbarWidth: 'thin', scrollbarColor: '#edf1f7 transparent' }}
+      style={{
+        scrollbarWidth: 'thin',
+        scrollbarColor: 'var(--color-strand-bg-deeper) transparent',
+      }}
     >
       <div className="space-y-5">
         {categories.map((category) => (
@@ -25,7 +28,7 @@ export function FAQSidebar({
                 {category.title}
               </h3>
             </div>
-            <ul className="space-y-0.5 border-l border-[rgba(25,36,52,0.12)]">
+            <ul className="space-y-0.5 border-l border-strand-border">
               {category.items.map((item) => {
                 const isActive = activeItemId === item.id
                 return (

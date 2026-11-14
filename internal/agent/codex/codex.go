@@ -122,7 +122,7 @@ func normalizeBackend(raw string) string {
 func normalizeAppServerURL(raw string) string {
 	url := strings.TrimSpace(raw)
 	if url == "" {
-		// Default to the stdio transport: cc-connect's app_server backend
+		// Default to the stdio transport: strand's app_server backend
 		// speaks JSON-RPC over the stdio pipes, and on codex 0.152+ a ws://
 		// --listen value leaves stdio unresponsive (see #1781). Users who
 		// need a WebSocket listener can still set app_server_url explicitly.
@@ -624,7 +624,7 @@ func (a *Agent) SkillDirs() []string {
 
 // CompressCommand returns "" because Codex native slash commands (/compact, /clear)
 // are not reliably executed in exec/resume mode — they may be treated as plain text.
-// See: https://github.com/chenhg5/cc-connect/issues/378
+// See: https://github.com/chenhg5/strand/issues/378
 func (a *Agent) CompressCommand() string { return "" }
 
 func codexSkillDirs(workDir, explicitCodexHome string) []string {

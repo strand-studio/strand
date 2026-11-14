@@ -196,37 +196,54 @@ func (s *Service) consoleSymbols(c *gin.Context) {
 	symbols := make([]gin.H, 0)
 	switch exchange {
 	case "hyperliquid":
+		source := "live"
+		var warnings []string
 		coins, err := hyperliquid.GetProvider().GetAllCoins(ctx)
 		if err != nil {
-			writeErr(c, http.StatusBadGateway, err)
-			return
-		}
-		xyz, xyzErr := hyperliquid.GetPerpDexCoins(ctx, "xyz")
-		if xyzErr == nil {
-			coins = append(coins, xyz...)
-		}
-		for _, coin := range coins {
-			cat := coinCategory(coin.Symbol)
-			if categoryFilter != "" && cat != categoryFilter {
-				continue
+			market.LogCEXBoardError("hyperliquid", err)
+			warnings = append(warnings, err.Error())
+			source = "unavailable"
+		} else {
+			xyz, xyzErr := hyperliquid.GetPerpDexCoins(ctx, "xyz")
+			if xyzErr == nil {
+				coins = append(coins, xyz...)
+			} else {
+				warnings = append(warnings, xyzErr.Error())
 			}
-			symbols = append(symbols, gin.H{
-				"symbol":         coin.Symbol,
-				"display":        coin.Symbol,
-				"name":           coin.Symbol,
-				"category":       cat,
-				"exchange":       "hyperliquid",
-				"volume_24h":     coin.Volume24h,
-				"mark_price":     coin.MarkPrice,
-				"change_24h_pct": coin.Change24hPct,
-				"prev_day_price": coin.PrevDayPrice,
-				"maxLeverage":    coin.MaxLeverage,
-				"sz_decimals":    coin.SzDecimals,
-			})
-			if len(symbols) >= limit {
-				break
+			for _, coin := range coins {
+				cat := coinCategory(coin.Symbol)
+				if categoryFilter != "" && cat != categoryFilter {
+					continue
+				}
+				symbols = append(symbols, gin.H{
+					"symbol":         coin.Symbol,
+					"display":        coin.Symbol,
+					"name":           coin.Symbol,
+					"category":       cat,
+					"exchange":       "hyperliquid",
+					"volume_24h":     coin.Volume24h,
+					"mark_price":     coin.MarkPrice,
+					"change_24h_pct": coin.Change24hPct,
+					"prev_day_price": coin.PrevDayPrice,
+					"maxLeverage":    coin.MaxLeverage,
+					"sz_decimals":    coin.SzDecimals,
+				})
+				if len(symbols) >= limit {
+					break
+				}
 			}
 		}
+		payload := gin.H{
+			"exchange": exchange,
+			"symbols":  symbols,
+			"count":    len(symbols),
+			"source":   source,
+		}
+		if len(warnings) > 0 {
+			payload["warnings"] = warnings
+		}
+		writeJSON(c, http.StatusOK, payload)
+		return
 	case "binance", "bybit", "okx", "gate", "bitget", "kucoin":
 		source := "live"
 		if market.SupportsLiveCEXBoard(exchange) {
@@ -356,7 +373,8 @@ func (s *Service) consoleKlines(c *gin.Context) {
 		hlInterval := hyperliquid.MapTimeframe(interval)
 		candles, err := client.GetCandles(ctx, symbol, hlInterval, limit)
 		if err != nil {
-			writeErr(c, http.StatusBadGateway, err)
+			market.LogCEXBoardError(exchange+" klines", err)
+			writeJSON(c, http.StatusOK, []any{})
 			return
 		}
 		out = make([]gin.H, 0, len(candles))
@@ -424,10 +442,23 @@ func (s *Service) resolveVergexClient(userID string) (*vergex.Client, error) {
 	return vergex.NewClient(baseURL, walletKey, &logger.MCPLogger{})
 }
 
+func vergexUnavailable(c *gin.Context, message string, extra gin.H) {
+	payload := gin.H{
+		"items":   []any{},
+		"message": message,
+	}
+	for k, v := range extra {
+		payload[k] = v
+	}
+	writeJSON(c, http.StatusOK, payload)
+}
+
 func (s *Service) consoleVergexLeaderboard(c *gin.Context) {
 	client, err := s.resolveVergexClient(currentUserID(c))
 	if err != nil {
-		writeErr(c, http.StatusBadGateway, err)
+		vergexUnavailable(c, err.Error(), gin.H{
+			"band": 0, "universeSize": 0, "rankBy": "", "asOf": 0,
+		})
 		return
 	}
 	if client == nil {
@@ -441,7 +472,9 @@ func (s *Service) consoleVergexLeaderboard(c *gin.Context) {
 	defer cancel()
 	data, err := client.GetDirectionChangeLeaderboard(ctx)
 	if err != nil {
-		writeErr(c, http.StatusBadGateway, err)
+		vergexUnavailable(c, err.Error(), gin.H{
+			"band": 0, "universeSize": 0, "rankBy": "", "asOf": 0,
+		})
 		return
 	}
 	items := make([]gin.H, 0, len(data.Items))
@@ -479,7 +512,7 @@ func (s *Service) consoleVergexCurrent(c *gin.Context) {
 	}
 	client, err := s.resolveVergexClient(currentUserID(c))
 	if err != nil {
-		writeErr(c, http.StatusBadGateway, err)
+		writeJSON(c, http.StatusOK, gin.H{"symbol": symbol, "direction": "unknown", "message": err.Error()})
 		return
 	}
 	if client == nil {
@@ -490,7 +523,7 @@ func (s *Service) consoleVergexCurrent(c *gin.Context) {
 	defer cancel()
 	raw, err := client.GetDirectionChangeCurrent(ctx, symbol)
 	if err != nil {
-		writeErr(c, http.StatusBadGateway, err)
+		writeJSON(c, http.StatusOK, gin.H{"symbol": symbol, "direction": "unknown", "message": err.Error()})
 		return
 	}
 	c.Data(http.StatusOK, "application/json", raw)
@@ -503,7 +536,7 @@ func (s *Service) consoleVergexHistory(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
 	client, err := s.resolveVergexClient(currentUserID(c))
 	if err != nil {
-		writeErr(c, http.StatusBadGateway, err)
+		vergexUnavailable(c, err.Error(), nil)
 		return
 	}
 	if client == nil {
@@ -514,7 +547,7 @@ func (s *Service) consoleVergexHistory(c *gin.Context) {
 	defer cancel()
 	raw, err := client.GetDirectionChangeHistory(ctx, symbol, eventType, page, pageSize)
 	if err != nil {
-		writeErr(c, http.StatusBadGateway, err)
+		vergexUnavailable(c, err.Error(), nil)
 		return
 	}
 	c.Data(http.StatusOK, "application/json", raw)
@@ -523,7 +556,7 @@ func (s *Service) consoleVergexHistory(c *gin.Context) {
 func (s *Service) consoleVergexHeatmap(c *gin.Context) {
 	client, err := s.resolveVergexClient(currentUserID(c))
 	if err != nil {
-		writeErr(c, http.StatusBadGateway, err)
+		writeJSON(c, http.StatusOK, gin.H{"message": err.Error()})
 		return
 	}
 	if client == nil {
@@ -541,7 +574,7 @@ func (s *Service) consoleVergexHeatmap(c *gin.Context) {
 	defer cancel()
 	raw, err := client.GetCostLiquidationHeatmap(ctx, q)
 	if err != nil {
-		writeErr(c, http.StatusBadGateway, err)
+		writeJSON(c, http.StatusOK, gin.H{"message": err.Error()})
 		return
 	}
 	c.Data(http.StatusOK, "application/json", raw)
@@ -550,7 +583,7 @@ func (s *Service) consoleVergexHeatmap(c *gin.Context) {
 func (s *Service) consoleVergexWinrate(c *gin.Context) {
 	client, err := s.resolveVergexClient(currentUserID(c))
 	if err != nil {
-		writeErr(c, http.StatusBadGateway, err)
+		writeJSON(c, http.StatusOK, gin.H{"message": err.Error()})
 		return
 	}
 	if client == nil {
@@ -581,7 +614,7 @@ func (s *Service) consoleVergexWinrate(c *gin.Context) {
 	defer cancel()
 	raw, err := client.GetHolderWinrateMap(ctx, q)
 	if err != nil {
-		writeErr(c, http.StatusBadGateway, err)
+		writeJSON(c, http.StatusOK, gin.H{"message": err.Error()})
 		return
 	}
 	c.Data(http.StatusOK, "application/json", raw)
@@ -590,7 +623,7 @@ func (s *Service) consoleVergexWinrate(c *gin.Context) {
 func (s *Service) consoleVergexWinrateHolders(c *gin.Context) {
 	client, err := s.resolveVergexClient(currentUserID(c))
 	if err != nil {
-		writeErr(c, http.StatusBadGateway, err)
+		writeJSON(c, http.StatusOK, gin.H{"items": []any{}, "message": err.Error()})
 		return
 	}
 	if client == nil {
@@ -616,7 +649,7 @@ func (s *Service) consoleVergexWinrateHolders(c *gin.Context) {
 	defer cancel()
 	raw, err := client.GetHolderWinrateHolders(ctx, q)
 	if err != nil {
-		writeErr(c, http.StatusBadGateway, err)
+		writeJSON(c, http.StatusOK, gin.H{"items": []any{}, "message": err.Error()})
 		return
 	}
 	c.Data(http.StatusOK, "application/json", raw)
@@ -625,7 +658,7 @@ func (s *Service) consoleVergexWinrateHolders(c *gin.Context) {
 func (s *Service) consoleVergexFlowMarkets(c *gin.Context) {
 	client, err := s.resolveVergexClient(currentUserID(c))
 	if err != nil {
-		writeErr(c, http.StatusBadGateway, err)
+		vergexUnavailable(c, err.Error(), nil)
 		return
 	}
 	if client == nil {
@@ -639,7 +672,7 @@ func (s *Service) consoleVergexFlowMarkets(c *gin.Context) {
 	defer cancel()
 	raw, err := client.GetFlowMarkets(ctx, chain, window, limit)
 	if err != nil {
-		writeErr(c, http.StatusBadGateway, err)
+		vergexUnavailable(c, err.Error(), nil)
 		return
 	}
 	c.Data(http.StatusOK, "application/json", raw)

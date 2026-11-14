@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Trash2, Brain, ExternalLink } from 'lucide-react'
+import { toast } from 'sonner'
 import type { AIModel } from '../../types'
 import type { Language } from '../../i18n/translations'
 import { t } from '../../i18n/translations'
@@ -28,6 +29,8 @@ interface ModelConfigModalProps {
   onDelete: (modelId: string) => void
   onClose: () => void
   language: Language
+  /** Page-style embed (no overlay). Used by Resources hub. */
+  embedded?: boolean
 }
 
 export function ModelConfigModal({
@@ -39,12 +42,21 @@ export function ModelConfigModal({
   onDelete,
   onClose,
   language,
+  embedded = false,
 }: ModelConfigModalProps) {
-  const defaultModelId =
-    editingModelId ||
-    initialModelId ||
-    allModels.find((model) => model.provider === 'claw402')?.id ||
-    ''
+  // When editing a configured row (id may be "<user>_openai"), prefer its
+  // provider so the form shows the matching template type.
+  // Add flow (no edit id / deep-link type) must start at the provider picker —
+  // do not auto-jump into Claw402 config.
+  const editingConfigured = editingModelId
+    ? configuredModels?.find(
+        (m) => m.id === editingModelId || m.provider === editingModelId
+      )
+    : undefined
+  const deepLinkType = initialModelId || null
+  const defaultModelId = editingConfigured
+    ? editingConfigured.provider || editingConfigured.id || editingModelId || ''
+    : editingModelId || deepLinkType || ''
   const [currentStep, setCurrentStep] = useState(defaultModelId ? 1 : 0)
   const [selectedModelId, setSelectedModelId] = useState(defaultModelId)
   const [saving, setSaving] = useState(false)
@@ -119,6 +131,8 @@ export function ModelConfigModal({
       configuredModel?.provider ||
       selectedModelId
     try {
+      // Always probe before persisting. Do not treat a soft HTTP envelope as
+      // success unless the provider actually accepted the credentials.
       await api.testModelConfig({
         provider,
         model_id: modelId,
@@ -134,11 +148,12 @@ export function ModelConfigModal({
         modelName.trim() || undefined
       )
     } catch (error) {
-      setSaveError(
+      const message =
         error instanceof Error && error.message
           ? error.message
-          : 'Connection test failed. Fix the credentials before saving.'
-      )
+          : 'Connection test failed. Credentials were not saved.'
+      setSaveError(message)
+      toast.error(message)
     } finally {
       savePending.current = false
       setSaving(false)
@@ -147,8 +162,12 @@ export function ModelConfigModal({
   }
 
   const availableModels = allModels || []
+  // Gold check only for rows that actually hold a key and did not fail the last test.
   const configuredIds = new Set<string>()
   for (const model of configuredModels || []) {
+    const hasKey = Boolean(model.has_api_key || model.apiKey)
+    if (!hasKey) continue
+    if (model.tested && model.last_test_ok === false) continue
     if (model.id) configuredIds.add(model.id)
     if (model.provider) configuredIds.add(model.provider)
   }
@@ -157,14 +176,7 @@ export function ModelConfigModal({
     t('modelConfig.configureApi', language),
   ]
 
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto backdrop-blur-xs">
-      <div
-        className="rounded-2xl w-full max-w-208 relative my-8 shadow-2xl bg-strand-bg-lighter"
-        style={{
-          maxHeight: 'calc(100vh - 4rem)',
-        }}
-      >
+  const panel = (
         <fieldset disabled={saving} className="min-w-0 border-0 p-0 m-0">
           {saving && (
             <p role="status" className="px-6 pt-4 text-sm">
@@ -174,7 +186,10 @@ export function ModelConfigModal({
             </p>
           )}
           {saveError && (
-            <p role="alert" className="px-6 pt-4 text-sm text-red-600">
+            <p
+              role="alert"
+              className="mx-6 mt-4 rounded-lg border border-strand-danger/30 bg-strand-danger/10 px-3 py-2 text-sm text-strand-danger"
+            >
               {saveError}
             </p>
           )}
@@ -189,7 +204,7 @@ export function ModelConfigModal({
                 >
                   <svg
                     className="w-5 h-5"
-                    style={{ color: '#707e92' }}
+                    style={{ color: 'var(--text-tertiary)' }}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -203,7 +218,7 @@ export function ModelConfigModal({
                   </svg>
                 </button>
               )}
-              <h3 className="text-xl font-bold" style={{ color: '#192434' }}>
+              <h3 className="text-xl font-bold text-strand-text">
                 {editingModelId
                   ? t('editAIModel', language)
                   : t('addAIModel', language)}
@@ -215,7 +230,7 @@ export function ModelConfigModal({
                   type="button"
                   onClick={() => onDelete(editingModelId)}
                   className="p-2 rounded-lg hover:bg-strand-danger/20 transition-colors"
-                  style={{ color: '#D6433A' }}
+                  style={{ color: 'var(--binance-red, #D6433A)' }}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -225,7 +240,7 @@ export function ModelConfigModal({
                 onClick={onClose}
                 aria-label="Close AI setup"
                 className="p-2 rounded-lg hover:bg-strand-bg-deeper transition-colors"
-                style={{ color: '#707e92' }}
+                style={{ color: 'var(--text-tertiary)' }}
               >
                 ✕
               </button>
@@ -243,10 +258,7 @@ export function ModelConfigModal({
           )}
 
           {/* Content */}
-          <div
-            className="px-6 pb-6 overflow-y-auto"
-            style={{ maxHeight: 'calc(100vh - 16rem)' }}
-          >
+          <div className="px-6 pb-6">
             {/* Step 0: Select Model */}
             {currentStep === 0 && !editingModelId && (
               <ModelSelectionStep
@@ -300,6 +312,38 @@ export function ModelConfigModal({
               )}
           </div>
         </fieldset>
+  )
+
+  if (embedded) {
+    return (
+      <div className="w-full" style={{ background: 'var(--panel-bg)' }}>
+        {panel}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] overflow-y-auto"
+      style={{
+        background:
+          'color-mix(in srgb, var(--background, #0b1220) 45%, transparent)',
+        backdropFilter: 'blur(6px)',
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !saving) onClose()
+      }}
+    >
+      <div className="min-h-full flex items-start justify-center px-4 py-6 sm:py-10">
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="rounded-2xl w-full max-w-208 relative shadow-2xl border border-strand-border/40 overflow-hidden"
+          style={{ background: 'var(--panel-bg)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {panel}
+        </div>
       </div>
     </div>
   )
@@ -322,7 +366,7 @@ function ModelSelectionStep({
 }) {
   return (
     <div className="space-y-4">
-      <div className="text-sm font-semibold" style={{ color: '#192434' }}>
+      <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
         {t('modelConfig.chooseProvider', language)}
       </div>
 
@@ -336,7 +380,7 @@ function ModelSelectionStep({
           }}
           className="w-full p-5 rounded-xl text-left transition-all hover:scale-[1.01]"
           style={{
-            background: 'rgba(41,91,232, 0.10)',
+            background: 'color-mix(in srgb, var(--strand-accent) 12%, transparent)',
             border: '1.5px solid rgba(41,91,232, 0.4)',
           }}
         >
@@ -348,7 +392,7 @@ function ModelSelectionStep({
               <div>
                 <div
                   className="font-bold text-base"
-                  style={{ color: '#192434' }}
+                  style={{ color: 'var(--text-primary)' }}
                 >
                   Claw402
                   <a
@@ -358,14 +402,14 @@ function ModelSelectionStep({
                     onClick={(e) => e.stopPropagation()}
                     className="ml-1.5 text-[10px] font-normal px-1.5 py-0.5 rounded-sm"
                     style={{
-                      color: '#295be8',
-                      background: 'rgba(41,91,232, 0.1)',
+                      color: 'var(--strand-accent)',
+                      background: 'color-mix(in srgb, var(--strand-accent) 12%, transparent)',
                     }}
                   >
                     ↗ claw402.ai
                   </a>
                 </div>
-                <div className="text-xs mt-0.5" style={{ color: '#707e92' }}>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                   {t('modelConfig.payPerCall', language)}
                 </div>
               </div>
@@ -374,14 +418,14 @@ function ModelSelectionStep({
               {configuredIds.has('claw402') && (
                 <div
                   className="w-2 h-2 rounded-full"
-                  style={{ background: '#2E8B57' }}
+                  style={{ background: 'var(--binance-green, #2E8B57)' }}
                 />
               )}
               <div
                 className="px-3 py-1.5 rounded-full text-xs font-bold"
                 style={{
-                  background: '#295be8',
-                  color: '#fff',
+                  background: 'var(--strand-accent)',
+                  color: 'var(--panel-bg)',
                 }}
               >
                 {'🔥 ' + t('modelConfig.recommended', language)}
@@ -393,7 +437,7 @@ function ModelSelectionStep({
               className="text-[11px] px-2 py-0.5 rounded-full"
               style={{
                 background: 'rgba(46, 139, 87, 0.1)',
-                color: '#2E8B57',
+                color: 'var(--binance-green, #2E8B57)',
                 border: '1px solid rgba(46, 139, 87, 0.2)',
               }}
             >
@@ -419,7 +463,7 @@ function ModelSelectionStep({
             />
           ))}
       </div>
-      <div className="text-xs text-center pt-2" style={{ color: '#707e92' }}>
+      <div className="text-xs text-center pt-2" style={{ color: 'var(--text-tertiary)' }}>
         {t('modelConfig.modelsConfigured', language)}
       </div>
     </div>
@@ -460,8 +504,8 @@ function StandardProviderConfigForm({
       <div
         className="p-4 rounded-xl flex items-center gap-4"
         style={{
-          background: '#f6f8fc',
-          border: '1px solid rgba(25,36,52,0.14)',
+          background: 'var(--background)',
+          border: '1px solid var(--panel-border)',
         }}
       >
         <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-strand-bg-deeper border border-strand-gold/20">
@@ -469,34 +513,34 @@ function StandardProviderConfigForm({
             width: 32,
             height: 32,
           }) || (
-            <span className="text-lg font-bold" style={{ color: '#295be8' }}>
+            <span className="text-lg font-bold" style={{ color: 'var(--strand-accent)' }}>
               {selectedModel.name[0]}
             </span>
           )}
         </div>
         <div className="flex-1">
-          <div className="font-semibold text-lg" style={{ color: '#192434' }}>
+          <div className="font-semibold text-lg" style={{ color: 'var(--text-primary)' }}>
             {getShortName(selectedModel.name)}
           </div>
-          <div className="text-xs" style={{ color: '#707e92' }}>
+          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
             {selectedModel.provider} •{' '}
             {AI_PROVIDER_CONFIG[selectedModel.provider]?.defaultModel ||
               selectedModel.id}
           </div>
         </div>
-        {AI_PROVIDER_CONFIG[selectedModel.provider] && (
+        {AI_PROVIDER_CONFIG[selectedModel.provider]?.apiKeyUrl && (
           <a
-            href={AI_PROVIDER_CONFIG[selectedModel.provider].apiUrl}
+            href={AI_PROVIDER_CONFIG[selectedModel.provider].apiKeyUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all hover:scale-105"
             style={{
-              background: 'rgba(41,91,232, 0.1)',
+              background: 'color-mix(in srgb, var(--strand-accent) 12%, transparent)',
               border: '1px solid rgba(41,91,232, 0.3)',
             }}
           >
-            <ExternalLink className="w-4 h-4" style={{ color: '#295be8' }} />
-            <span className="text-sm font-medium" style={{ color: '#295be8' }}>
+            <ExternalLink className="w-4 h-4" style={{ color: 'var(--strand-accent)' }} />
+            <span className="text-sm font-medium" style={{ color: 'var(--strand-accent)' }}>
               {t('modelConfig.getApiKey', language)}
             </span>
           </a>
@@ -514,7 +558,7 @@ function StandardProviderConfigForm({
         >
           <div className="flex items-start gap-2">
             <span style={{ fontSize: '16px' }}>⚠️</span>
-            <div className="text-sm" style={{ color: '#D6433A' }}>
+            <div className="text-sm" style={{ color: 'var(--binance-red, #D6433A)' }}>
               {t('kimiApiNote', language)}
             </div>
           </div>
@@ -527,9 +571,9 @@ function StandardProviderConfigForm({
         <div
           className="p-3 rounded-xl text-xs"
           style={{
-            background: 'rgba(41,91,232, 0.08)',
+            background: 'color-mix(in srgb, var(--strand-accent) 10%, transparent)',
             border: '1px solid rgba(41,91,232, 0.22)',
-            color: '#707e92',
+            color: 'var(--text-tertiary)',
           }}
         >
           {language === 'zh'
@@ -545,7 +589,7 @@ function StandardProviderConfigForm({
           style={{
             background: 'rgba(46, 139, 87, 0.08)',
             border: '1px solid rgba(46, 139, 87, 0.2)',
-            color: '#2E8B57',
+            color: 'var(--binance-green, #2E8B57)',
           }}
         >
           Current model key status:{' '}
@@ -558,11 +602,11 @@ function StandardProviderConfigForm({
       <div className="space-y-2">
         <label
           className="flex items-center gap-2 text-sm font-semibold"
-          style={{ color: '#192434' }}
+          style={{ color: 'var(--text-primary)' }}
         >
           <svg
             className="w-4 h-4"
-            style={{ color: '#295be8' }}
+            style={{ color: 'var(--strand-accent)' }}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -587,9 +631,9 @@ function StandardProviderConfigForm({
           }
           className="w-full px-4 py-3 rounded-xl"
           style={{
-            background: '#f6f8fc',
-            border: '1px solid rgba(25,36,52,0.14)',
-            color: '#192434',
+            background: 'var(--background)',
+            border: '1px solid var(--panel-border)',
+            color: 'var(--text-primary)',
           }}
           required={!(editingModelId && selectedModel.has_api_key)}
         />
@@ -599,11 +643,11 @@ function StandardProviderConfigForm({
       <div className="space-y-2">
         <label
           className="flex items-center gap-2 text-sm font-semibold"
-          style={{ color: '#192434' }}
+          style={{ color: 'var(--text-primary)' }}
         >
           <svg
             className="w-4 h-4"
-            style={{ color: '#295be8' }}
+            style={{ color: 'var(--strand-accent)' }}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -627,12 +671,12 @@ function StandardProviderConfigForm({
           }
           className="w-full px-4 py-3 rounded-xl"
           style={{
-            background: '#f6f8fc',
-            border: '1px solid rgba(25,36,52,0.14)',
-            color: '#192434',
+            background: 'var(--background)',
+            border: '1px solid var(--panel-border)',
+            color: 'var(--text-primary)',
           }}
         />
-        <div className="text-xs" style={{ color: '#707e92' }}>
+        <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
           {providerDefaults?.apiUrl
             ? `${t('leaveBlankForDefault', language)} · ${providerDefaults.apiName}: ${providerDefaults.apiUrl}`
             : t('leaveBlankForDefault', language)}
@@ -643,11 +687,11 @@ function StandardProviderConfigForm({
       <div className="space-y-2">
         <label
           className="flex items-center gap-2 text-sm font-semibold"
-          style={{ color: '#192434' }}
+          style={{ color: 'var(--text-primary)' }}
         >
           <svg
             className="w-4 h-4"
-            style={{ color: '#295be8' }}
+            style={{ color: 'var(--strand-accent)' }}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -671,12 +715,12 @@ function StandardProviderConfigForm({
           }
           className="w-full px-4 py-3 rounded-xl"
           style={{
-            background: '#f6f8fc',
-            border: '1px solid rgba(25,36,52,0.14)',
-            color: '#192434',
+            background: 'var(--background)',
+            border: '1px solid var(--panel-border)',
+            color: 'var(--text-primary)',
           }}
         />
-        <div className="text-xs" style={{ color: '#707e92' }}>
+        <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
           {providerDefaults?.defaultModel
             ? `${t('leaveBlankForDefaultModel', language)} · ${providerDefaults.defaultModel}`
             : t('leaveBlankForDefaultModel', language)}
@@ -687,18 +731,18 @@ function StandardProviderConfigForm({
       <div
         className="p-4 rounded-xl"
         style={{
-          background: 'rgba(41,91,232, 0.08)',
+          background: 'color-mix(in srgb, var(--strand-accent) 10%, transparent)',
           border: '1px solid rgba(41,91,232, 0.2)',
         }}
       >
         <div
           className="text-sm font-semibold mb-2 flex items-center gap-2"
-          style={{ color: '#295be8' }}
+          style={{ color: 'var(--strand-accent)' }}
         >
           <Brain className="w-4 h-4" />
           {t('information', language)}
         </div>
-        <div className="text-xs space-y-1" style={{ color: '#707e92' }}>
+        <div className="text-xs space-y-1" style={{ color: 'var(--text-tertiary)' }}>
           <div>• {t('modelConfigInfo1', language)}</div>
           <div>• {t('modelConfigInfo2', language)}</div>
           <div>• {t('modelConfigInfo3', language)}</div>
@@ -711,7 +755,7 @@ function StandardProviderConfigForm({
           type="button"
           onClick={onBack}
           className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-strand-bg-deeper"
-          style={{ background: '#edf1f7', color: '#707e92' }}
+          style={{ background: 'var(--color-strand-bg-deeper)', color: 'var(--text-tertiary)' }}
         >
           {editingModelId
             ? t('cancel', language)
@@ -724,7 +768,7 @@ function StandardProviderConfigForm({
             (!apiKey.trim() && !(editingModelId && selectedModel.has_api_key))
           }
           className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: '#295be8', color: '#fff' }}
+          style={{ background: 'var(--strand-accent)', color: 'var(--panel-bg)' }}
         >
           {t('saveConfig', language)}
           <svg

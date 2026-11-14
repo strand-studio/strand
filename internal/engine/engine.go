@@ -144,6 +144,17 @@ func (e *Engine) Start(ctx context.Context) error {
 		return err
 	}
 	e.bridges = bridges
+	if msgBridge, msgErr := buildMessagingBridge(e.cfg, st); msgErr != nil {
+		logger.Warnf("messaging channels not started: %v", msgErr)
+	} else if msgBridge != nil {
+		if err := msgBridge.engine.Start(); err != nil {
+			logger.Warnf("messaging bridge start failed: %v", err)
+			_ = msgBridge.engine.Stop()
+		} else {
+			e.bridges = append(e.bridges, msgBridge)
+			logger.Infof("消息通道已启动: platforms=%v", msgBridge.platforms)
+		}
+	}
 	e.rootCtx, e.rootCancel = context.WithCancel(context.Background())
 	e.tgBinder = telegramnotify.NewBinder(st)
 	e.tgBinder.Start(e.rootCtx)

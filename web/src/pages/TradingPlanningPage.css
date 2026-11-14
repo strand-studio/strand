@@ -1081,15 +1081,15 @@
   flex-wrap: wrap;
 }
 .planning-page .frontier-long {
-  background: #e6f2e9;
-  color: #236b44;
-  border-color: #b8d5bf;
+  background: var(--binance-green-bg);
+  color: var(--binance-green);
+  border-color: var(--binance-green-border);
   font-weight: 600;
 }
 .planning-page .frontier-short {
-  background: #f9e7e1;
-  color: #ad4335;
-  border-color: #e6c0b5;
+  background: var(--binance-red-bg);
+  color: var(--binance-red);
+  border-color: var(--binance-red-border);
   font-weight: 600;
 }
 .frontier-account-subhead {
@@ -1132,8 +1132,9 @@
   padding: 8px 0;
 }
 .frontier-notice {
-  background: #f9efdc;
-  border: 1px solid #dfc89e;
+  background: color-mix(in srgb, var(--strand-gold) 12%, var(--panel-bg));
+  border: 1px solid color-mix(in srgb, var(--strand-gold) 35%, transparent);
+  color: var(--text-primary);
   padding: 10px 12px;
   border-radius: 8px;
   line-height: 1.5;

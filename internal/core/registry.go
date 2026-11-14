@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"sort"
 )
 
 // PlatformFactory creates a Platform from config options.
@@ -30,6 +31,7 @@ func CreatePlatform(name string, opts map[string]any) (Platform, error) {
 		for k := range platformFactories {
 			available = append(available, k)
 		}
+		sort.Strings(available)
 		return nil, fmt.Errorf("unknown platform %q, available: %s", name, available)
 	}
 	return f(opts)
@@ -40,6 +42,7 @@ func ListRegisteredAgents() []string {
 	for k := range agentFactories {
 		names = append(names, k)
 	}
+	sort.Strings(names)
 	return names
 }
 
@@ -48,6 +51,7 @@ func ListRegisteredPlatforms() []string {
 	for k := range platformFactories {
 		names = append(names, k)
 	}
+	sort.Strings(names)
 	return names
 }
 

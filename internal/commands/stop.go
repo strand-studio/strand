@@ -11,7 +11,7 @@ import (
 var StopCommand = &cli.Command{
 	Name:    "stop",
 	Aliases: []string{"down"},
-	Usage:   "停止后台或前台的 strand 服务",
+	Usage:   "Stop a running Strand process (foreground or detached)",
 	Action:  stopAction,
 }
 
@@ -23,5 +23,5 @@ func stopAction(ctx *cli.Context) error {
 	if err := stopPID(cfg.ProcPath(), 12*time.Second); err != nil {
 		return finish("", err)
 	}
-	return finish(fmt.Sprintf("已停止（%s）", cfg.ProcPath()), nil)
+	return finish(fmt.Sprintf("stopped (%s)", cfg.ProcPath()), nil)
 }

@@ -30,7 +30,7 @@ import { EdgeProfile } from './EdgeProfile'
 import { GridRiskPanel } from '../strategy/GridRiskPanel'
 import { PositionHistory } from '../trader/PositionHistory'
 import { useDemoEngine } from '../../lib/demo/useDemoEngine'
-import { ROUTES } from '../../router/paths'
+import { ROUTES, buildResourcesConfigurePath } from '../../router/paths'
 
 // crypto majors trade on the Hyperliquid main dex (no hip3 cost/liq heatmap);
 // everything else in the universe is an xyz-dex synthetic market that does.
@@ -206,9 +206,10 @@ export function TerminalDashboard({
   const exchangeState: ExchangeAccountState | undefined = exchangeId
     ? exchangeStates?.[exchangeId]
     : undefined
-  const exchangeSetupHref = exchangeId
-    ? `${ROUTES.traders}?setup=exchange&exchange_id=${encodeURIComponent(exchangeId)}`
-    : `${ROUTES.traders}?setup=exchange`
+  const exchangeSetupHref = buildResourcesConfigurePath({
+    kind: 'exchange',
+    id: exchangeId,
+  })
 
   async function closePositionRow(symbol: string, side: 'LONG' | 'SHORT') {
     if (!traderId || closing) return

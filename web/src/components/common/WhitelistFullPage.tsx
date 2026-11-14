@@ -34,8 +34,8 @@ export function WhitelistFullPage({ onBack }: WhitelistFullPageProps) {
           <div className="flex items-center justify-between px-4 py-2 bg-strand-danger/10 border-b border-strand-danger/30">
             <div className="flex gap-1.5 opacity-50">
               <div className="w-2.5 h-2.5 rounded-full bg-strand-danger"></div>
-              <div className="w-2.5 h-2.5 rounded-full bg-[rgba(25,36,52,0.25)]"></div>
-              <div className="w-2.5 h-2.5 rounded-full bg-[rgba(25,36,52,0.25)]"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-strand-text/25"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-strand-text/25"></div>
             </div>
             <div className="text-[10px] text-strand-danger font-mono tracking-widest animate-pulse">
               ACCESS_DENIED // ERROR_403
@@ -89,7 +89,7 @@ export function WhitelistFullPage({ onBack }: WhitelistFullPageProps) {
             <div className="space-y-3">
               <button
                 onClick={handleBackToLogin}
-                className="w-full flex items-center justify-center gap-2 py-3 border border-[rgba(25,36,52,0.14)] bg-strand-bg hover:bg-strand-bg-deeper hover:border-strand-danger hover:text-strand-danger text-strand-text-muted transition-all text-xs font-bold tracking-widest uppercase group"
+                className="w-full flex items-center justify-center gap-2 py-3 border border-strand-border bg-strand-bg hover:bg-strand-bg-deeper hover:border-strand-danger hover:text-strand-danger text-strand-text-muted transition-all text-xs font-bold tracking-widest uppercase group"
               >
                 <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
                 RETURN TO LOGIN
@@ -101,7 +101,7 @@ export function WhitelistFullPage({ onBack }: WhitelistFullPageProps) {
                     href={OFFICIAL_LINKS.twitter}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 py-2 border border-[rgba(25,36,52,0.14)] bg-strand-bg hover:bg-strand-bg-deeper text-strand-text-muted hover:text-strand-text transition-colors text-[10px] uppercase"
+                    className="flex items-center justify-center gap-2 py-2 border border-strand-border bg-strand-bg hover:bg-strand-bg-deeper text-strand-text-muted hover:text-strand-text transition-colors text-[10px] uppercase"
                   >
                     <ShieldAlert className="w-3 h-3" />
                     Updates
@@ -112,7 +112,7 @@ export function WhitelistFullPage({ onBack }: WhitelistFullPageProps) {
                     href={OFFICIAL_LINKS.telegram}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 py-2 border border-[rgba(25,36,52,0.14)] bg-strand-bg hover:bg-strand-bg-deeper text-strand-text-muted hover:text-strand-text transition-colors text-[10px] uppercase"
+                    className="flex items-center justify-center gap-2 py-2 border border-strand-border bg-strand-bg hover:bg-strand-bg-deeper text-strand-text-muted hover:text-strand-text transition-colors text-[10px] uppercase"
                   >
                     <Send className="w-3 h-3" />
                     Support
@@ -123,7 +123,7 @@ export function WhitelistFullPage({ onBack }: WhitelistFullPageProps) {
           </div>
 
           {/* Footer */}
-          <div className="bg-strand-bg-deeper p-2 text-[9px] text-strand-text-muted text-center border-t border-[rgba(25,36,52,0.14)] font-mono uppercase">
+          <div className="bg-strand-bg-deeper p-2 text-[9px] text-strand-text-muted text-center border-t border-strand-border font-mono uppercase">
             ERR_CODE: WLIST_0x403 // SECURITY_LAYER_ACTIVE
           </div>
         </div>

@@ -175,9 +175,31 @@ func (s *AIChargeStore) GetDailyCost(period string) float64 {
 	return total
 }
 
+// ChargeBucket is a spend slice for one model or provider key.
+type ChargeBucket struct {
+	USD   float64 `json:"usd"`
+	Calls int64   `json:"calls"`
+}
+
 // GetSummary returns summary stats for a period
 func (s *AIChargeStore) GetSummary(period string) (total float64, count int64, byModel map[string]float64) {
-	byModel = make(map[string]float64)
+	total, count, byModelDetailed, _ := s.GetSummaryDetailed(period)
+	byModel = make(map[string]float64, len(byModelDetailed))
+	for k, v := range byModelDetailed {
+		byModel[k] = v.USD
+	}
+	return total, count, byModel
+}
+
+// GetSummaryDetailed returns totals plus per-model and per-provider buckets.
+func (s *AIChargeStore) GetSummaryDetailed(period string) (
+	total float64,
+	count int64,
+	byModel map[string]ChargeBucket,
+	byProvider map[string]ChargeBucket,
+) {
+	byModel = make(map[string]ChargeBucket)
+	byProvider = make(map[string]ChargeBucket)
 
 	query := s.db.Model(&AICharge{})
 	query = applyPeriodFilter(query, period)
@@ -187,20 +209,40 @@ func (s *AIChargeStore) GetSummary(period string) (total float64, count int64, b
 	query2 = applyPeriodFilter(query2, period)
 	query2.Scan(&total)
 
-	// By model breakdown
-	type modelCost struct {
-		Model string  `gorm:"column:model"`
+	type keyedCost struct {
+		Key   string  `gorm:"column:key"`
 		Total float64 `gorm:"column:total"`
+		Calls int64   `gorm:"column:calls"`
 	}
-	var results []modelCost
-	query3 := s.db.Model(&AICharge{}).Select("model, SUM(cost_usd) as total").Group("model")
-	query3 = applyPeriodFilter(query3, period)
-	query3.Find(&results)
-	for _, r := range results {
-		byModel[r.Model] = r.Total
+	var modelRows []keyedCost
+	qModel := s.db.Model(&AICharge{}).
+		Select("model as key, SUM(cost_usd) as total, COUNT(*) as calls").
+		Group("model")
+	qModel = applyPeriodFilter(qModel, period)
+	qModel.Find(&modelRows)
+	for _, r := range modelRows {
+		key := strings.TrimSpace(r.Key)
+		if key == "" {
+			continue
+		}
+		byModel[key] = ChargeBucket{USD: r.Total, Calls: r.Calls}
 	}
 
-	return total, count, byModel
+	var providerRows []keyedCost
+	qProv := s.db.Model(&AICharge{}).
+		Select("provider as key, SUM(cost_usd) as total, COUNT(*) as calls").
+		Group("provider")
+	qProv = applyPeriodFilter(qProv, period)
+	qProv.Find(&providerRows)
+	for _, r := range providerRows {
+		key := strings.TrimSpace(r.Key)
+		if key == "" {
+			continue
+		}
+		byProvider[key] = ChargeBucket{USD: r.Total, Calls: r.Calls}
+	}
+
+	return total, count, byModel, byProvider
 }
 
 func applyPeriodFilter(query *gorm.DB, period string) *gorm.DB {

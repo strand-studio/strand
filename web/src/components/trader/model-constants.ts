@@ -13,7 +13,10 @@ export interface Claw402Model {
 
 export interface AIProviderConfig {
   defaultModel: string
+  /** OpenAI-compatible Base URL used as the blank-field default. */
   apiUrl: string
+  /** Console / signup page where the user creates an API key. */
+  apiKeyUrl: string
   apiName: string
 }
 
@@ -37,7 +40,7 @@ export function getShortName(fullName: string): string {
   return parts.length > 1 ? parts[parts.length - 1] : fullName
 }
 
-export const DEFAULT_CLAW402_MODEL = 'gpt-5.6'
+export const DEFAULT_CLAW402_MODEL = 'gpt-6-luna'
 
 // Models available through Claw402 (x402 USDC payment protocol)
 // Must stay in sync with the claw402 catalog (GET /api/v1/catalog)
@@ -165,41 +168,51 @@ export const AI_PROVIDER_CONFIG: Record<string, AIProviderConfig> = {
   claw402: {
     defaultModel: DEFAULT_CLAW402_MODEL,
     apiUrl: 'https://claw402.ai',
+    apiKeyUrl: 'https://claw402.ai',
     apiName: 'Claw402',
   },
   deepseek: {
-    defaultModel: 'deepseek-chat',
+    defaultModel: 'deepseek-flash',
     apiUrl: 'https://api.deepseek.com',
+    apiKeyUrl: 'https://platform.deepseek.com/api_keys',
     apiName: 'DeepSeek',
   },
   openai: {
-    defaultModel: 'gpt-4o-mini',
+    defaultModel: 'gpt-6-luna',
     apiUrl: 'https://api.openai.com/v1',
+    apiKeyUrl: 'https://platform.openai.com/api-keys',
     apiName: 'OpenAI',
   },
   qwen: {
     defaultModel: 'qwen3-max',
     apiUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    apiKeyUrl: 'https://bailian.console.aliyun.com/?tab=model#/api-key',
     apiName: 'Qwen',
   },
   claude: {
-    defaultModel: 'claude-sonnet-4-5',
+    defaultModel: 'claude-sonnet-5-5',
     apiUrl: 'https://api.anthropic.com/v1',
+    apiKeyUrl: 'https://console.anthropic.com/settings/keys',
     apiName: 'Claude',
   },
   gemini: {
-    defaultModel: 'gemini-2.0-flash',
+    defaultModel: 'gemini-3.6-flash',
     apiUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    apiKeyUrl: 'https://aistudio.google.com/apikey',
     apiName: 'Gemini',
   },
   grok: {
-    defaultModel: 'grok-2-latest',
+    defaultModel: 'grok-4.3',
     apiUrl: 'https://api.x.ai/v1',
+    apiKeyUrl: 'https://console.x.ai/',
     apiName: 'Grok',
   },
   kimi: {
-    defaultModel: 'moonshot-v1-8k',
+    defaultModel: 'kimi-k3',
+    // Base URL stays .cn for regional defaults; key signup must be
+    // international (moonshot.ai) — China-region keys are incompatible.
     apiUrl: 'https://api.moonshot.cn/v1',
+    apiKeyUrl: 'https://platform.moonshot.ai/console/api-keys',
     apiName: 'Kimi',
   },
 }

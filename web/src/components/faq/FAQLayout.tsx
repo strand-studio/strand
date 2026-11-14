@@ -120,7 +120,7 @@ export function FAQLayout() {
                 href={OFFICIAL_LINKS.github}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper px-5 py-2.5 font-sans text-xs font-bold tracking-normal text-strand-text hover:border-strand-gold/40"
+                className="rounded-lg border border-strand-border bg-strand-bg-deeper px-5 py-2.5 font-sans text-xs font-bold tracking-normal text-strand-text hover:border-strand-gold/40"
               >
                 GitHub
               </a>

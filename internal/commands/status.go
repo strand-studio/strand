@@ -16,9 +16,10 @@ import (
 
 // StatusCommand reports whether the server is running.
 var StatusCommand = &cli.Command{
-	Name:   "status",
-	Usage:  "查看服务是否在运行",
-	Action: statusAction,
+	Name:        "status",
+	Usage:       "Show whether Strand is running",
+	Description: "Reports pid, config path, API address, and (when reachable) loaded traders / uptime.",
+	Action:      statusAction,
 }
 
 func statusAction(ctx *cli.Context) error {
@@ -30,24 +31,24 @@ func statusAction(ctx *cli.Context) error {
 	alive, pid := runningPID(cfg)
 	var b strings.Builder
 	if alive {
-		fmt.Fprintf(&b, "运行中  pid=%d\n", pid)
-		fmt.Fprintf(&b, "配置    %s\n", cfg.Path)
-		fmt.Fprintf(&b, "数据目录 %s\n", cfg.Data.Dir)
-		fmt.Fprintf(&b, "API     http://%s\n", cfg.Addr())
+		fmt.Fprintf(&b, "running  pid=%d\n", pid)
+		fmt.Fprintf(&b, "config   %s\n", cfg.Path)
+		fmt.Fprintf(&b, "data     %s\n", cfg.Data.Dir)
+		fmt.Fprintf(&b, "API      http://%s\n", cfg.Addr())
 
 		if snap, err := fetchStatus(cfg.Addr(), cfg.API.Token); err == nil {
-			fmt.Fprintf(&b, "项目    %d\n", len(snap.Projects))
-			fmt.Fprintf(&b, "交易员  loaded=%d running=%d\n", snap.Trading.Loaded, snap.Trading.Running)
+			fmt.Fprintf(&b, "projects %d\n", len(snap.Projects))
+			fmt.Fprintf(&b, "traders  loaded=%d running=%d\n", snap.Trading.Loaded, snap.Trading.Running)
 			if snap.UptimeSec > 0 {
-				fmt.Fprintf(&b, "运行时长 %ds\n", snap.UptimeSec)
+				fmt.Fprintf(&b, "uptime   %ds\n", snap.UptimeSec)
 			}
 		}
 	} else {
-		fmt.Fprintf(&b, "未运行\n")
+		fmt.Fprintf(&b, "not running\n")
 		if cfg.Path != "" {
-			fmt.Fprintf(&b, "配置 %s\n", cfg.Path)
+			fmt.Fprintf(&b, "config %s\n", cfg.Path)
 		} else {
-			fmt.Fprintf(&b, "提示: 先执行 strand config init\n")
+			fmt.Fprintf(&b, "hint: run strand config init first\n")
 		}
 	}
 	return finish(b.String(), nil)

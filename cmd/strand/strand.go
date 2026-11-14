@@ -13,9 +13,22 @@ import (
 var version = "0.1.0"
 
 var appName = "strand"
-var appAbout = "AI 交易助手：消息通道 + 行情交易 + HTTP API"
+var appAbout = "Self-hosted AI trading terminal — messaging, markets, Autopilot, and HTTP API"
 var appEdition = "preview"
-var appDescription = "通过微信等通讯软件查看市场、接收建议与通知，并提供客户端可用的 REST API。"
+var appDescription = `Strand runs on your machine: Web console + API, exchange trading, and chat alerts.
+Keys and funds stay local — nothing is custodial.
+
+Quick start:
+  strand config init          Create ~/.strand/config.toml and .env
+  strand start                Run API (default http://127.0.0.1:8080)
+  strand start -d             Detach to background (pid + log under data dir)
+  strand status               Check whether the service is running
+  strand messaging supported  List chat / alert platform types
+
+Web console (separate process):
+  cd web && pnpm install && pnpm run dev   → http://127.0.0.1:3000
+
+Docs: README.md · README.zh-CN.md · docs/`
 var appCopyright = ""
 
 var Metadata = map[string]any{

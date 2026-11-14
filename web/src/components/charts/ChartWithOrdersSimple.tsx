@@ -66,17 +66,17 @@ export function ChartWithOrdersSimple({
   }, [symbol, interval, traderID])
 
   return (
-    <div className="relative" style={{ background: '#f6f8fc', borderRadius: '8px', overflow: 'hidden', minHeight: height }}>
+    <div className="relative" style={{ background: 'var(--background)', borderRadius: '8px', overflow: 'hidden', minHeight: height }}>
       {/* Title bar */}
-      <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid rgba(25,36,52, 0.14)' }}>
+      <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--panel-border)' }}>
         <div className="flex items-center gap-3">
           <span className="text-xl">📈</span>
-          <h3 className="text-lg font-bold" style={{ color: '#192434' }}>
+          <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
             {symbol} {interval} (Test Mode)
           </h3>
         </div>
         {loading && (
-          <div className="text-sm" style={{ color: '#707e92' }}>
+          <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
             Loading...
           </div>
         )}
@@ -91,25 +91,25 @@ export function ChartWithOrdersSimple({
           </div>
         ) : (
           <>
-            <div className="p-4 rounded-sm" style={{ background: '#ffffff', border: '1px solid rgba(25,36,52, 0.14)' }}>
-              <div className="text-sm mb-2" style={{ color: '#707e92' }}>Binance Kline Data</div>
+            <div className="p-4 rounded-sm" style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}>
+              <div className="text-sm mb-2" style={{ color: 'var(--text-tertiary)' }}>Binance Kline Data</div>
               <div className="text-2xl font-bold" style={{ color: '#2E8B57' }}>
                 {klineCount} klines
               </div>
             </div>
 
             {traderID && (
-              <div className="p-4 rounded-sm" style={{ background: '#ffffff', border: '1px solid rgba(25,36,52, 0.14)' }}>
-                <div className="text-sm mb-2" style={{ color: '#707e92' }}>Historical Order Data</div>
-                <div className="text-2xl font-bold" style={{ color: '#295be8' }}>
+              <div className="p-4 rounded-sm" style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}>
+                <div className="text-sm mb-2" style={{ color: 'var(--text-tertiary)' }}>Historical Order Data</div>
+                <div className="text-2xl font-bold" style={{ color: 'var(--strand-gold)' }}>
                   {orderCount} orders
                 </div>
               </div>
             )}
 
-            <div className="p-4 rounded-sm" style={{ background: '#ffffff', border: '1px solid rgba(25,36,52, 0.14)' }}>
-              <div className="text-sm mb-2" style={{ color: '#707e92' }}>Status</div>
-              <div className="text-lg" style={{ color: '#192434' }}>
+            <div className="p-4 rounded-sm" style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}>
+              <div className="text-sm mb-2" style={{ color: 'var(--text-tertiary)' }}>Status</div>
+              <div className="text-lg" style={{ color: 'var(--text-primary)' }}>
                 ✅ Data fetched successfully, chart component in development
               </div>
             </div>

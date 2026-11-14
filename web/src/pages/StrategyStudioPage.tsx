@@ -64,7 +64,7 @@ function BacktestEquitySpark({
     .join(' ')
   const up = values[values.length - 1] >= values[0]
   return (
-    <div className="rounded-lg border border-[rgba(25,36,52,0.12)] bg-strand-bg p-2">
+    <div className="rounded-lg border border-strand-border bg-strand-bg p-2">
       <svg viewBox={`0 0 ${w} ${h}`} className="h-24 w-full" role="img">
         <path
           d={path}
@@ -385,7 +385,7 @@ function signalBiasInfo(bias: string | undefined) {
     label: 'Neutral',
     hint: 'Neutral bias',
     classes:
-      'border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper text-strand-text-muted',
+      'border-strand-border bg-strand-bg-deeper text-strand-text-muted',
     icon: Target,
   }
 }
@@ -468,7 +468,7 @@ function directionStyle(direction?: string) {
   return {
     dot: 'bg-slate-400',
     text: 'text-strand-text-muted',
-    chip: 'border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper text-strand-text-muted',
+    chip: 'border-strand-border bg-strand-bg-deeper text-strand-text-muted',
     bar: 'bg-slate-500/70',
   }
 }
@@ -496,7 +496,7 @@ function DetailMetricCard({
             : 'text-strand-text'
 
   return (
-    <div className="rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper p-3">
+    <div className="rounded-lg border border-strand-border bg-strand-bg-deeper p-3">
       <div className="text-xs text-strand-text-muted">{label}</div>
       <div className={`mt-2 font-mono text-lg ${toneClass}`}>{value}</div>
       {note ? (
@@ -517,7 +517,7 @@ function DirectionChangePanel({
 }) {
   if (!current && !history) {
     return (
-      <div className="rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper p-4 text-sm text-strand-text-muted">
+      <div className="rounded-lg border border-strand-border bg-strand-bg-deeper p-4 text-sm text-strand-text-muted">
         Bull/Bear Radar has not loaded yet.
       </div>
     )
@@ -525,8 +525,8 @@ function DirectionChangePanel({
   const direction = current?.direction || current?.new_bias || 'neutral'
   const factors = Object.entries(current?.reason || {})
   return (
-    <section className="overflow-hidden rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-lighter shadow-lg">
-      <div className="border-b border-[rgba(25,36,52,0.14)] px-5 py-4">
+    <section className="overflow-hidden rounded-lg border border-strand-border bg-strand-bg-lighter shadow-lg">
+      <div className="border-b border-strand-border px-5 py-4">
         <div className="text-base font-semibold text-strand-text">
           Bull/Bear Radar
         </div>
@@ -554,7 +554,7 @@ function DirectionChangePanel({
           ))}
         </div>
       ) : null}
-      <div className="border-t border-[rgba(25,36,52,0.14)] p-5">
+      <div className="border-t border-strand-border p-5">
         <div className="mb-3 text-sm font-semibold text-strand-text">
           Direction changes
         </div>
@@ -618,7 +618,7 @@ function ChartGridLines() {
         <div
           key={left}
           className={`absolute top-0 h-full w-px ${
-            left === 50 ? 'bg-[rgba(25,36,52,0.24)]' : 'bg-strand-bg-deeper'
+            left === 50 ? 'bg-strand-text/25' : 'bg-strand-bg-deeper'
           }`}
           style={{ left: `${left}%` }}
         />
@@ -711,7 +711,7 @@ function CostLiquidationHeatmap({
 
   if (!data || bins.length === 0) {
     return (
-      <div className="rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper p-4 text-sm text-strand-text-muted">
+      <div className="rounded-lg border border-strand-border bg-strand-bg-deeper p-4 text-sm text-strand-text-muted">
         Cost/liquidation heatmap has not loaded yet.
       </div>
     )
@@ -735,8 +735,8 @@ function CostLiquidationHeatmap({
   const includedLiq = data.liqAddrs || 0
 
   return (
-    <section className="overflow-hidden rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-lighter shadow-lg">
-      <div className="border-b border-[rgba(25,36,52,0.14)] bg-strand-bg-lighter px-5 py-4">
+    <section className="overflow-hidden rounded-lg border border-strand-border bg-strand-bg-lighter shadow-lg">
+      <div className="border-b border-strand-border bg-strand-bg-lighter px-5 py-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="text-base font-semibold text-strand-text">
@@ -788,7 +788,7 @@ function CostLiquidationHeatmap({
           </span>
         </div>
 
-        <div className="relative rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper px-4 py-5">
+        <div className="relative rounded-lg border border-strand-border bg-strand-bg-deeper px-4 py-5">
           <ChartGridLines />
           <div className="relative z-10 max-h-[720px] space-y-1 overflow-y-auto pr-2">
             {bins.map((bin, index) => (
@@ -1475,7 +1475,7 @@ export function StrategyStudioPage() {
 
   return (
     <DeepVoidBackground className="strand-strategy min-h-[calc(100vh-72px)] bg-strand-bg">
-      <div className="strand-strategy-heading border-b border-[rgba(25,36,52,0.14)] bg-strand-bg px-5 py-4">
+      <div className="strand-strategy-heading border-b border-strand-border bg-strand-bg px-5 py-4">
         <div className="flex items-center justify-between gap-4">
           <div>
             <span className="mb-1 block text-[10px] font-semibold tracking-[0.14em] text-strand-gold">
@@ -1532,7 +1532,7 @@ export function StrategyStudioPage() {
       </div>
 
       <div className="grid min-h-[calc(100vh-137px)] grid-cols-1">
-        <aside className="hidden border-r border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper p-3">
+        <aside className="hidden border-r border-strand-border bg-strand-bg-deeper p-3">
           <div className="mb-2 px-2 text-xs font-medium uppercase tracking-wide text-strand-text-muted">
             {text(language, 'My strategies', 'My strategies')}
           </div>
@@ -1549,7 +1549,7 @@ export function StrategyStudioPage() {
                 className={`w-full rounded-lg border px-3 py-3 text-left transition ${
                   selectedStrategy?.id === strategy.id
                     ? 'border-strand-gold bg-strand-gold/10'
-                    : 'border-[rgba(25,36,52,0.14)] bg-strand-bg-lighter hover:border-[rgba(25,36,52,0.24)]'
+                    : 'border-strand-border bg-strand-bg-lighter hover:border-strand-text/25'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -1575,7 +1575,7 @@ export function StrategyStudioPage() {
         <main className="overflow-y-auto p-5">
           {selectedStrategy && aiConfig && coinSource && indicators && risk ? (
             <div className="mx-auto max-w-7xl space-y-4">
-              <section className="hidden rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-lighter p-4">
+              <section className="hidden rounded-lg border border-strand-border bg-strand-bg-lighter p-4">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <input
@@ -1664,7 +1664,7 @@ export function StrategyStudioPage() {
 
               <section
                 id="strategy-risk-gates"
-                className="scroll-mt-24 rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-lighter p-4"
+                className="scroll-mt-24 rounded-lg border border-strand-border bg-strand-bg-lighter p-4"
               >
                 <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -1716,7 +1716,7 @@ export function StrategyStudioPage() {
                           max_positions: Number(event.target.value),
                         })
                       }
-                      className="w-full rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg px-3 py-2 text-sm text-strand-text"
+                      className="w-full rounded-lg border border-strand-border bg-strand-bg px-3 py-2 text-sm text-strand-text"
                     >
                       {[1, 2, 3, 4, 5, 6, 7, 8].map((value) => (
                         <option key={value} value={value}>
@@ -1734,7 +1734,7 @@ export function StrategyStudioPage() {
                       onChange={(event) =>
                         setLeverage(Number(event.target.value))
                       }
-                      className="w-full rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg px-3 py-2 text-sm text-strand-text"
+                      className="w-full rounded-lg border border-strand-border bg-strand-bg px-3 py-2 text-sm text-strand-text"
                     >
                       {[1, 2, 3, 5, 8, 10].map((value) => (
                         <option key={value} value={value}>
@@ -1754,7 +1754,7 @@ export function StrategyStudioPage() {
                           max_margin_usage: Number(event.target.value) / 100,
                         })
                       }
-                      className="w-full rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg px-3 py-2 text-sm text-strand-text"
+                      className="w-full rounded-lg border border-strand-border bg-strand-bg px-3 py-2 text-sm text-strand-text"
                     >
                       {[50, 60, 70, 80, 90, 100].map((value) => (
                         <option key={value} value={value}>
@@ -1774,7 +1774,7 @@ export function StrategyStudioPage() {
                           daily_loss_limit_pct: Number(event.target.value),
                         })
                       }
-                      className="w-full rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg px-3 py-2 text-sm text-strand-text"
+                      className="w-full rounded-lg border border-strand-border bg-strand-bg px-3 py-2 text-sm text-strand-text"
                     >
                       {[0, 5, 8, 10, 15, 20].map((value) => (
                         <option key={value} value={value}>
@@ -1796,7 +1796,7 @@ export function StrategyStudioPage() {
                           max_drawdown_pct: Number(event.target.value),
                         })
                       }
-                      className="w-full rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg px-3 py-2 text-sm text-strand-text"
+                      className="w-full rounded-lg border border-strand-border bg-strand-bg px-3 py-2 text-sm text-strand-text"
                     >
                       {[0, 10, 15, 20, 25, 30, 40].map((value) => (
                         <option key={value} value={value}>
@@ -1815,7 +1815,7 @@ export function StrategyStudioPage() {
                 ) : null}
               </section>
 
-              <section className="rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-lighter p-4">
+              <section className="rounded-lg border border-strand-border bg-strand-bg-lighter p-4">
                 <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2 text-sm font-semibold text-strand-text">
@@ -1876,7 +1876,7 @@ export function StrategyStudioPage() {
                   <input
                     value={backtestSymbol}
                     onChange={(e) => setBacktestSymbol(e.target.value)}
-                    className="w-full rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg px-3 py-2 text-sm text-strand-text"
+                    className="w-full rounded-lg border border-strand-border bg-strand-bg px-3 py-2 text-sm text-strand-text"
                   />
                 </label>
                 {backtestResult ? (
@@ -1933,7 +1933,7 @@ export function StrategyStudioPage() {
                 ) : null}
               </section>
 
-              <section className="rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-lighter p-4">
+              <section className="rounded-lg border border-strand-border bg-strand-bg-lighter p-4">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2 text-sm font-semibold text-strand-text">
@@ -1965,7 +1965,7 @@ export function StrategyStudioPage() {
                       className={`hidden items-center gap-2 rounded-lg border px-3 py-2 text-xs disabled:opacity-50 ${
                         listMode === 'claw402'
                           ? 'border-strand-gold bg-strand-gold/10 text-strand-gold'
-                          : 'border-[rgba(25,36,52,0.14)] text-strand-text-muted hover:text-strand-text'
+                          : 'border-strand-border text-strand-text-muted hover:text-strand-text'
                       }`}
                     >
                       <Sparkles className="h-3.5 w-3.5" />
@@ -1979,8 +1979,8 @@ export function StrategyStudioPage() {
                       disabled={symbolsLoading}
                       className={`hidden items-center gap-2 rounded-lg border px-3 py-2 text-xs disabled:opacity-50 ${
                         listMode === 'pool'
-                          ? 'border-[rgba(25,36,52,0.24)] bg-strand-bg-deeper text-strand-text'
-                          : 'border-[rgba(25,36,52,0.14)] text-strand-text-muted hover:text-strand-text'
+                          ? 'border-strand-border bg-strand-bg-deeper text-strand-text'
+                          : 'border-strand-border text-strand-text-muted hover:text-strand-text'
                       }`}
                     >
                       <RefreshCw
@@ -1994,7 +1994,7 @@ export function StrategyStudioPage() {
                         void loadSignals()
                       }}
                       disabled={signalsLoading}
-                      className="inline-flex items-center gap-2 rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper px-3 py-2 text-xs text-strand-text-muted hover:text-strand-text disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-lg border border-strand-border bg-strand-bg-deeper px-3 py-2 text-xs text-strand-text-muted hover:text-strand-text disabled:opacity-50"
                     >
                       <RefreshCw
                         className={`h-3.5 w-3.5 ${signalsLoading ? 'animate-spin' : ''}`}
@@ -2010,7 +2010,7 @@ export function StrategyStudioPage() {
                             vergex_market_type: 'all',
                           })
                         }
-                        className="hidden rounded-lg border border-[rgba(25,36,52,0.14)] px-3 py-2 text-xs text-strand-text-muted hover:text-strand-text"
+                        className="hidden rounded-lg border border-strand-border px-3 py-2 text-xs text-strand-text-muted hover:text-strand-text"
                       >
                         Clear selected
                       </button>
@@ -2043,7 +2043,7 @@ export function StrategyStudioPage() {
                         className={`rounded-lg border px-3 py-2 text-xs transition ${
                           scope === option.value
                             ? 'border-strand-gold bg-strand-gold/10 text-strand-gold'
-                            : 'border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper text-strand-text-muted hover:text-strand-text'
+                            : 'border-strand-border bg-strand-bg-deeper text-strand-text-muted hover:text-strand-text'
                         }`}
                       >
                         {option.en}
@@ -2071,7 +2071,7 @@ export function StrategyStudioPage() {
                     className={`rounded-lg border p-4 text-left transition ${
                       selectedSymbols.length === 0
                         ? 'border-strand-success bg-strand-success/10'
-                        : 'border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper hover:border-[rgba(25,36,52,0.24)]'
+                        : 'border-strand-border bg-strand-bg-deeper hover:border-strand-text/25'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
@@ -2100,7 +2100,7 @@ export function StrategyStudioPage() {
                     className={`rounded-lg border p-4 text-left transition ${
                       selectedSymbols.length > 0
                         ? 'border-strand-gold bg-strand-gold/10'
-                        : 'border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper hover:border-[rgba(25,36,52,0.24)]'
+                        : 'border-strand-border bg-strand-bg-deeper hover:border-strand-text/25'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
@@ -2133,7 +2133,7 @@ export function StrategyStudioPage() {
                           vergex_limit: Math.max(Number(event.target.value), 5),
                         })
                       }
-                      className="rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg px-3 py-2 text-sm text-strand-text"
+                      className="rounded-lg border border-strand-border bg-strand-bg px-3 py-2 text-sm text-strand-text"
                     >
                       {topNOptions.map((value) => (
                         <option key={value} value={value}>
@@ -2191,7 +2191,7 @@ export function StrategyStudioPage() {
                             className={`cursor-pointer rounded-lg border p-3 text-left transition ${
                               detailSelected || selected
                                 ? 'border-strand-gold bg-strand-gold/10'
-                                : 'border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper hover:border-[rgba(25,36,52,0.24)]'
+                                : 'border-strand-border bg-strand-bg-deeper hover:border-strand-text/25'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2">
@@ -2213,7 +2213,7 @@ export function StrategyStudioPage() {
                                 {formatSignalStrength(item)}
                               </span>
                             </div>
-                            <div className="mt-4 flex items-center justify-between gap-3 border-t border-[rgba(25,36,52,0.14)] pt-3 text-[11px] uppercase tracking-wide text-strand-text-muted">
+                            <div className="mt-4 flex items-center justify-between gap-3 border-t border-strand-border pt-3 text-[11px] uppercase tracking-wide text-strand-text-muted">
                               <span>{categoryLabel(item.category, 'en')}</span>
                               <span>{signalMarketType(item)}</span>
                             </div>
@@ -2232,7 +2232,7 @@ export function StrategyStudioPage() {
                             className={`rounded-lg border p-3 text-left transition ${
                               selected
                                 ? 'border-strand-gold bg-strand-gold/10'
-                                : 'border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper hover:border-[rgba(25,36,52,0.24)]'
+                                : 'border-strand-border bg-strand-bg-deeper hover:border-strand-text/25'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2">
@@ -2266,7 +2266,7 @@ export function StrategyStudioPage() {
                   >
                     {detailSignal ? (
                       <>
-                        <section className="rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-lighter px-4 py-3">
+                        <section className="rounded-lg border border-strand-border bg-strand-bg-lighter px-4 py-3">
                           <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
@@ -2302,7 +2302,7 @@ export function StrategyStudioPage() {
                                   )
                                 }
                                 disabled={detailLoading}
-                                className="inline-flex items-center gap-2 rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper px-3 py-2 text-xs text-strand-text-muted hover:text-strand-text disabled:opacity-50"
+                                className="inline-flex items-center gap-2 rounded-lg border border-strand-border bg-strand-bg-deeper px-3 py-2 text-xs text-strand-text-muted hover:text-strand-text disabled:opacity-50"
                               >
                                 <RefreshCw
                                   className={`h-3.5 w-3.5 ${
@@ -2333,7 +2333,7 @@ export function StrategyStudioPage() {
                         />
                       </>
                     ) : (
-                      <div className="rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper px-4 py-4 text-sm text-strand-text-muted">
+                      <div className="rounded-lg border border-strand-border bg-strand-bg-deeper px-4 py-4 text-sm text-strand-text-muted">
                         Strand Autopilot follows the Claw402 direction board and
                         uses liquidation structure and raw candles as context.
                       </div>
@@ -2344,7 +2344,7 @@ export function StrategyStudioPage() {
                 {listMode === 'claw402' &&
                 signals.length > 0 &&
                 visibleSignalItems.length === 0 ? (
-                  <div className="rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper px-3 py-3 text-sm text-strand-text-muted">
+                  <div className="rounded-lg border border-strand-border bg-strand-bg-deeper px-3 py-3 text-sm text-strand-text-muted">
                     No Claw402 markets available.
                   </div>
                 ) : null}
@@ -2352,17 +2352,17 @@ export function StrategyStudioPage() {
                 {listMode === 'pool' &&
                 visibleSymbols.length === 0 &&
                 !symbolsLoading ? (
-                  <div className="rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper px-3 py-3 text-sm text-strand-text-muted">
+                  <div className="rounded-lg border border-strand-border bg-strand-bg-deeper px-3 py-3 text-sm text-strand-text-muted">
                     No markets available.
                   </div>
                 ) : null}
               </section>
 
-              <details className="hidden rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-deeper p-4">
+              <details className="hidden rounded-lg border border-strand-border bg-strand-bg-deeper p-4">
                 <summary className="cursor-pointer text-sm font-semibold text-strand-text">
                   {text(language, 'Advanced settings', 'Advanced settings')}
                 </summary>
-                <div className="mt-4 rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-lighter p-4">
+                <div className="mt-4 rounded-lg border border-strand-border bg-strand-bg-lighter p-4">
                   <div className="mb-3 text-sm font-semibold text-strand-text">
                     {text(language, 'Trading style', 'Trading style')}
                   </div>
@@ -2375,7 +2375,7 @@ export function StrategyStudioPage() {
                         className={`rounded-lg border px-3 py-2 text-sm transition ${
                           activeProfile === profile.value
                             ? 'border-strand-gold bg-strand-gold/10 text-strand-gold'
-                            : 'border-[rgba(25,36,52,0.14)] text-strand-text-muted hover:text-strand-text'
+                            : 'border-strand-border text-strand-text-muted hover:text-strand-text'
                         }`}
                       >
                         {text(language, profile.zh, profile.en)}
@@ -2384,7 +2384,7 @@ export function StrategyStudioPage() {
                   </div>
                 </div>
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-lighter p-4">
+                  <div className="rounded-lg border border-strand-border bg-strand-bg-lighter p-4">
                     <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-strand-text">
                       <Sparkles className="h-4 w-4 text-strand-gold" />
                       {text(language, 'Raw candles', 'Raw candles')}
@@ -2404,7 +2404,7 @@ export function StrategyStudioPage() {
                                 indicators.klines.primary_timeframe ===
                                 timeframe
                                   ? 'border-strand-gold bg-strand-gold/10 text-strand-gold'
-                                  : 'border-[rgba(25,36,52,0.14)] text-strand-text-muted hover:text-strand-text'
+                                  : 'border-strand-border text-strand-text-muted hover:text-strand-text'
                               }`}
                             >
                               {timeframe}
@@ -2425,7 +2425,7 @@ export function StrategyStudioPage() {
                               className={`rounded-lg border px-3 py-2 text-sm ${
                                 indicators.klines.primary_count === count
                                   ? 'border-strand-gold bg-strand-gold/10 text-strand-gold'
-                                  : 'border-[rgba(25,36,52,0.14)] text-strand-text-muted hover:text-strand-text'
+                                  : 'border-strand-border text-strand-text-muted hover:text-strand-text'
                               }`}
                             >
                               {count}
@@ -2436,7 +2436,7 @@ export function StrategyStudioPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-lighter p-4">
+                  <div className="rounded-lg border border-strand-border bg-strand-bg-lighter p-4">
                     <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-strand-text">
                       <Shield className="h-4 w-4 text-strand-success" />
                       {text(
@@ -2457,7 +2457,7 @@ export function StrategyStudioPage() {
                               max_positions: Number(event.target.value),
                             })
                           }
-                          className="w-full rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg px-3 py-2 text-sm text-strand-text"
+                          className="w-full rounded-lg border border-strand-border bg-strand-bg px-3 py-2 text-sm text-strand-text"
                         >
                           {[1, 2, 3, 4, 5, 6, 7, 8].map((value) => (
                             <option key={value} value={value}>
@@ -2475,7 +2475,7 @@ export function StrategyStudioPage() {
                           onChange={(event) =>
                             setLeverage(Number(event.target.value))
                           }
-                          className="w-full rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg px-3 py-2 text-sm text-strand-text"
+                          className="w-full rounded-lg border border-strand-border bg-strand-bg px-3 py-2 text-sm text-strand-text"
                         >
                           {[1, 2, 3, 5, 8, 10].map((value) => (
                             <option key={value} value={value}>
@@ -2499,7 +2499,7 @@ export function StrategyStudioPage() {
                               min_confidence: Number(event.target.value),
                             })
                           }
-                          className="w-full rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg px-3 py-2 text-sm text-strand-text"
+                          className="w-full rounded-lg border border-strand-border bg-strand-bg px-3 py-2 text-sm text-strand-text"
                         >
                           {confidenceOptions.map((value) => (
                             <option key={value} value={value}>
@@ -2523,7 +2523,7 @@ export function StrategyStudioPage() {
                               daily_loss_limit_pct: Number(event.target.value),
                             })
                           }
-                          className="w-full rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg px-3 py-2 text-sm text-strand-text"
+                          className="w-full rounded-lg border border-strand-border bg-strand-bg px-3 py-2 text-sm text-strand-text"
                         >
                           {[0, 5, 8, 10, 15, 20].map((value) => (
                             <option key={value} value={value}>
@@ -2549,7 +2549,7 @@ export function StrategyStudioPage() {
                               max_drawdown_pct: Number(event.target.value),
                             })
                           }
-                          className="w-full rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg px-3 py-2 text-sm text-strand-text"
+                          className="w-full rounded-lg border border-strand-border bg-strand-bg px-3 py-2 text-sm text-strand-text"
                         >
                           {[0, 10, 15, 20, 25, 30, 40].map((value) => (
                             <option key={value} value={value}>
@@ -2571,7 +2571,7 @@ export function StrategyStudioPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg-lighter p-4">
+                <div className="mt-4 rounded-lg border border-strand-border bg-strand-bg-lighter p-4">
                   <div className="mb-2 text-sm font-semibold text-strand-text">
                     {text(language, 'Strategy note', 'Strategy note')}
                   </div>
@@ -2585,7 +2585,7 @@ export function StrategyStudioPage() {
                       'Example: only trade clean trends; skip entries when board signals conflict with candles.',
                       'Example: only trade clean trends; skip entries when board signals conflict with candles.'
                     )}
-                    className="h-28 w-full resize-none rounded-lg border border-[rgba(25,36,52,0.14)] bg-strand-bg px-3 py-2 text-sm text-strand-text outline-hidden placeholder:text-strand-text-muted/50"
+                    className="h-28 w-full resize-none rounded-lg border border-strand-border bg-strand-bg px-3 py-2 text-sm text-strand-text outline-hidden placeholder:text-strand-text-muted/50"
                   />
                 </div>
               </details>

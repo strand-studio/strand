@@ -307,7 +307,7 @@ export default function FlowLanding() {
                 </linearGradient>
               </defs>
               {[40, 80, 120].map((y) => (
-                <path key={y} d={`M0 ${y}H600`} stroke="#edf1f7" />
+                <path key={y} d={`M0 ${y}H600`} stroke="var(--panel-border)" />
               ))}
               <path
                 d="M0 140 40 128 70 134 110 112 150 118 190 92 230 98 270 74 310 86 360 58 410 70 460 48 510 56 560 42V180H0Z"

@@ -327,8 +327,8 @@ func (s *appServerSession) connect() error {
 func (s *appServerSession) initialize() error {
 	params := map[string]any{
 		"clientInfo": map[string]any{
-			"name":    "cc-connect-codex-agent",
-			"title":   "CC Connect Codex Agent",
+			"name":    "strand-codex-agent",
+			"title":   "Strand Codex Agent",
 			"version": "0.1.0",
 		},
 		"capabilities": map[string]any{
@@ -558,7 +558,7 @@ func (s *appServerSession) stageImages(prompt string, images []core.ImageAttachm
 		return prompt, nil, nil
 	}
 
-	imgDir := filepath.Join(s.workDir, ".cc-connect", "images")
+	imgDir := filepath.Join(s.workDir, ".strand", "images")
 	if err := os.MkdirAll(imgDir, 0o755); err != nil {
 		return "", nil, fmt.Errorf("codex app-server: create image dir: %w", err)
 	}

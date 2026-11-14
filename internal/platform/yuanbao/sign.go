@@ -142,9 +142,9 @@ func fetchToken(appKey, appSecret, apiDomain, routeEnv string) (*tokenData, erro
 			continue
 		}
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("X-AppVersion", "cc-connect-yuanbao/1.0.0")
+		req.Header.Set("X-AppVersion", "strand-yuanbao/1.0.0")
 		req.Header.Set("X-Instance-Id", fmt.Sprintf("%d", instanceID))
-		req.Header.Set("X-Bot-Version", "cc-connect-yuanbao/1.0.0")
+		req.Header.Set("X-Bot-Version", "strand-yuanbao/1.0.0")
 		if routeEnv != "" {
 			req.Header.Set("X-Route-Env", routeEnv)
 		}
@@ -194,7 +194,7 @@ func fetchToken(appKey, appSecret, apiDomain, routeEnv string) (*tokenData, erro
 }
 
 // VerifyCredentials probes the sign-token API with app_key/app_secret and
-// returns the bot_id on success. Used by `cc-connect yuanbao setup` so users
+// returns the bot_id on success. Used by `strand yuanbao setup` so users
 // see a clear error before the platform starts retrying on a background loop.
 func VerifyCredentials(appKey, appSecret, apiDomain, routeEnv string) (botID string, err error) {
 	if strings.TrimSpace(appKey) == "" || strings.TrimSpace(appSecret) == "" {

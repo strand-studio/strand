@@ -19,7 +19,7 @@ export function FAQSearchBar({
         value={searchTerm}
         onChange={(e) => onSearchChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-12 pr-12 py-3 rounded-lg text-base transition-all focus:outline-hidden bg-strand-bg-lighter border border-[rgba(25,36,52,0.14)] text-strand-text placeholder-strand-text-muted/50 focus:border-strand-gold/50 focus:ring-1 focus:ring-strand-gold/20 hover:border-strand-gold/30 font-sans"
+        className="w-full pl-12 pr-12 py-3 rounded-lg text-base transition-all focus:outline-hidden bg-strand-bg-lighter border border-strand-border text-strand-text placeholder-strand-text-muted/50 focus:border-strand-gold/50 focus:ring-1 focus:ring-strand-gold/20 hover:border-strand-gold/30 font-sans"
       />
       {searchTerm && (
         <button

@@ -89,7 +89,7 @@ export class HttpClient {
   }
 
   private async handleError(error: AxiosError): Promise<any> {
-    const isSilent = (error.config as any)?.silentError === false
+    const isSilent = Boolean((error.config as any)?.silentError)
     const errorData = error.response?.data as
       | {
           error?: string

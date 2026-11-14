@@ -183,7 +183,7 @@ export function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-strand-bg-lighter border border-[rgba(25,36,52,0.14)] rounded-lg px-4 py-[11px] text-[14px] text-strand-text placeholder-strand-text-muted focus:outline-hidden focus:border-strand-gold/50 focus:bg-strand-bg-lighter focus:ring-2 focus:ring-strand-gold/20 transition-all"
+                  className="w-full bg-strand-bg-lighter border border-strand-border rounded-lg px-4 py-[11px] text-[14px] text-strand-text placeholder-strand-text-muted focus:outline-hidden focus:border-strand-gold/50 focus:bg-strand-bg-lighter focus:ring-2 focus:ring-strand-gold/20 transition-all"
                   placeholder="you@example.com"
                   required
                   autoFocus
@@ -210,7 +210,7 @@ export function LoginPage() {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-strand-bg-lighter border border-[rgba(25,36,52,0.14)] rounded-lg px-4 py-[11px] pr-11 text-[14px] text-strand-text placeholder-strand-text-muted focus:outline-hidden focus:border-strand-gold/50 focus:bg-strand-bg-lighter focus:ring-2 focus:ring-strand-gold/20 transition-all"
+                    className="w-full bg-strand-bg-lighter border border-strand-border rounded-lg px-4 py-[11px] pr-11 text-[14px] text-strand-text placeholder-strand-text-muted focus:outline-hidden focus:border-strand-gold/50 focus:bg-strand-bg-lighter focus:ring-2 focus:ring-strand-gold/20 transition-all"
                     placeholder="••••••••"
                     required
                     autoComplete="current-password"
@@ -260,7 +260,7 @@ export function LoginPage() {
             </form>
 
             {/* Footer */}
-            <div className="mt-8 pt-5 border-t border-[rgba(25,36,52,0.14)] flex items-center justify-between text-[11px]">
+            <div className="mt-8 pt-5 border-t border-strand-border flex items-center justify-between text-[11px]">
               <span className="text-strand-text-muted">Local workspace</span>
               <button
                 type="button"

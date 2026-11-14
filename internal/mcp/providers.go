@@ -17,22 +17,26 @@ const (
 	ProviderClaw402 = "claw402"
 
 	DefaultDeepSeekBaseURL = "https://api.deepseek.com"
-	DefaultDeepSeekModel   = "deepseek-chat"
+	DefaultDeepSeekModel   = "deepseek-flash"
 
 	DefaultOpenAIBaseURL = "https://api.openai.com/v1"
-	DefaultOpenAIModel   = "gpt-4o-mini"
+	DefaultOpenAIModel   = "gpt-6-luna"
 
 	DefaultQwenBaseURL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 	DefaultQwenModel   = "qwen3-max"
 
 	DefaultGrokBaseURL = "https://api.x.ai/v1"
-	DefaultGrokModel   = "grok-2-latest"
+	DefaultGrokModel   = "grok-4.3"
 
 	DefaultGeminiBaseURL = "https://generativelanguage.googleapis.com/v1beta/openai"
-	DefaultGeminiModel   = "gemini-2.0-flash"
+	DefaultGeminiModel   = "gemini-3.6-flash"
 
 	DefaultKimiBaseURL = "https://api.moonshot.cn/v1"
-	DefaultKimiModel   = "moonshot-v1-8k"
+	DefaultKimiModel   = "kimi-k3"
+
+	DefaultClaudeModel = "claude-sonnet-5-5"
+
+	DefaultClaw402Model = "gpt-6-luna"
 
 	DefaultMiniMaxBaseURL = "https://api.minimax.io/v1"
 	DefaultMiniMaxModel   = "MiniMax-M2.7"
@@ -94,12 +98,12 @@ func ResolveEndpoint(provider, customURL, customModel string) (baseURL, model st
 		}
 	case ProviderClaude:
 		if model == "" {
-			model = "claude-sonnet-4-5"
+			model = DefaultClaudeModel
 		}
 		// Claude keeps its own default base URL when custom URL is empty.
 	case ProviderClaw402:
 		if model == "" {
-			model = "gpt-5.6"
+			model = DefaultClaw402Model
 		}
 	default:
 		if baseURL == "" {

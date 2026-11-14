@@ -66,7 +66,7 @@ const (
 
 // pushBudgetExceededCounter is incremented every time the push-path burst
 // budget is exhausted. Exposed via PushBudgetExceededTotal() for diagnostics
-// (`cc-connect doctor` and on-demand queries). Per-process — the budget itself
+// (`strand doctor` and on-demand queries). Per-process — the budget itself
 // is per-account, but the counter is only observability and reset on restart.
 var pushBudgetExceededCounter atomic.Int64
 

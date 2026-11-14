@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import useSWR from 'swr'
 import { api } from '../../lib/api'
 import { ApiError } from '../../lib/httpClient'
-import { ROUTES } from '../../router/paths'
+import { ROUTES, buildResourcesConfigurePath } from '../../router/paths'
 import type {
   TraderInfo,
   CreateTraderRequest,
@@ -15,9 +15,6 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { t } from '../../i18n/translations'
 import { useAuth } from '../../contexts/AuthContext'
 import { TraderConfigModal } from './TraderConfigModal'
-import { ExchangeConfigModal } from './ExchangeConfigModal'
-import { ModelConfigModal } from './ModelConfigModal'
-import { ConfigStatusGrid } from './ConfigStatusGrid'
 import { TradersList } from './TradersList'
 import { AutopilotLaunchPanel } from './AutopilotLaunchPanel'
 import {
@@ -36,6 +33,7 @@ import {
   primarySetupTarget,
 } from '../../lib/launch/preflight'
 import type { LaunchPreflightResult } from '../../lib/launch/types'
+import { selectableResources } from '../../lib/preferredModel'
 
 interface AITradersPageProps {
   onTraderSelect?: (traderId: string) => void
@@ -64,69 +62,52 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
   }
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
-  const [showModelModal, setShowModelModal] = useState(false)
-  const [showExchangeModal, setShowExchangeModal] = useState(false)
-  const [editingModel, setEditingModel] = useState<string | null>(null)
-  const [editingExchange, setEditingExchange] = useState<string | null>(null)
-  const [initialModelId, setInitialModelId] = useState<string | null>(null)
-  const [initialExchangeType, setInitialExchangeType] = useState<string | null>(
-    null
-  )
   const [editingTrader, setEditingTrader] = useState<any>(null)
   const [allModels, setAllModels] = useState<AIModel[]>([])
   const [allExchanges, setAllExchanges] = useState<Exchange[]>([])
   const [exchangeAccountStates, setExchangeAccountStates] = useState<
     Record<string, ExchangeAccountState>
   >({})
-  const [isExchangeAccountStatesLoading, setIsExchangeAccountStatesLoading] =
-    useState(false)
-  const [accountStateError, setAccountStateError] = useState('')
-  const [supportedModels, setSupportedModels] = useState<AIModel[]>([])
   const [visibleTraderAddresses, setVisibleTraderAddresses] = useState<
-    Set<string>
-  >(new Set())
-  const [visibleExchangeAddresses, setVisibleExchangeAddresses] = useState<
     Set<string>
   >(new Set())
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const refreshAccountStates = async () => {
-    setIsExchangeAccountStatesLoading(true)
-    setAccountStateError('')
     try {
       const response = await api.getExchangeAccountState()
       setExchangeAccountStates(response.states || {})
     } catch {
       setExchangeAccountStates({})
-      setAccountStateError(
-        'Account verification could not finish. Your connection is saved. Retry the check below.'
-      )
-    } finally {
-      setIsExchangeAccountStatesLoading(false)
     }
   }
+
+  const goConfigureModel = (id?: string | null) => {
+    navigate(buildResourcesConfigurePath({ kind: 'model', id }))
+  }
+
+  const goConfigureExchange = (id?: string | null, type?: string | null) => {
+    navigate(buildResourcesConfigurePath({ kind: 'exchange', id, type }))
+  }
+
+  const goResources = () => navigate(ROUTES.resources)
 
   const loadConfigs = async () => {
     setConfigsLoading(true)
     setConfigError('')
     if (!user || !token) {
-      const models = await api.getSupportedModels()
-      setSupportedModels(models)
       setConfigsLoading(false)
       return
     }
 
-    setIsExchangeAccountStatesLoading(true)
     try {
-      const [modelConfigs, exchangeConfigs, models] = await Promise.all([
+      const [modelConfigs, exchangeConfigs] = await Promise.all([
         api.getModelConfigs(),
         api.getExchangeConfigs(),
-        api.getSupportedModels(),
         refreshAccountStates(),
       ])
       setAllModels(modelConfigs)
       setAllExchanges(exchangeConfigs)
-      setSupportedModels(models)
     } catch (error) {
       setConfigError(
         'Connections could not be loaded. Saved credentials have not been changed.'
@@ -134,7 +115,6 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
       throw error
     } finally {
       setConfigsLoading(false)
-      setIsExchangeAccountStatesLoading(false)
     }
   }
 
@@ -146,19 +126,6 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         next.delete(traderId)
       } else {
         next.add(traderId)
-      }
-      return next
-    })
-  }
-
-  // Toggle wallet address visibility for an exchange
-  const toggleExchangeAddressVisibility = (exchangeId: string) => {
-    setVisibleExchangeAddresses((prev) => {
-      const next = new Set(prev)
-      if (next.has(exchangeId)) {
-        next.delete(exchangeId)
-      } else {
-        next.add(exchangeId)
       }
       return next
     })
@@ -214,8 +181,10 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
       )
     }) || []
 
-  const enabledModels = allModels?.filter((m) => m.enabled) || []
-  const enabledExchanges =
+  const enabledModels = selectableResources(
+    allModels?.filter((m) => m.enabled) || []
+  )
+  const enabledExchanges = selectableResources(
     allExchanges?.filter((e) => {
       if (!e.enabled) return false
       if (e.id === 'aster') {
@@ -231,37 +200,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
       }
       return true
     }) || []
-
-  const getModelUsageInfo = (modelId: string) => {
-    const usingTraders = traders?.filter((tr) => tr.ai_model === modelId) || []
-    const runningCount = usingTraders.filter((tr) => tr.is_running).length
-    const totalCount = usingTraders.length
-    return { runningCount, totalCount, usingTraders }
-  }
-
-  const getExchangeUsageInfo = (exchangeId: string) => {
-    const usingTraders =
-      traders?.filter((tr) => tr.exchange_id === exchangeId) || []
-    const runningCount = usingTraders.filter((tr) => tr.is_running).length
-    const totalCount = usingTraders.length
-    return { runningCount, totalCount, usingTraders }
-  }
-
-  const isModelUsedByAnyTrader = (modelId: string) => {
-    return traders?.some((tr) => tr.ai_model === modelId) || false
-  }
-
-  const isExchangeUsedByAnyTrader = (exchangeId: string) => {
-    return traders?.some((tr) => tr.exchange_id === exchangeId) || false
-  }
-
-  const getTradersUsingModel = (modelId: string) => {
-    return traders?.filter((tr) => tr.ai_model === modelId) || []
-  }
-
-  const getTradersUsingExchange = (exchangeId: string) => {
-    return traders?.filter((tr) => tr.exchange_id === exchangeId) || []
-  }
+  )
 
   const handleCreateTrader = async (data: CreateTraderRequest) => {
     try {
@@ -413,13 +352,16 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
             | undefined
           if (preflight) {
             const target = primarySetupTarget(preflight)
-            if (target) {
+            if (target === 'claw402') {
+              navigate(`${ROUTES.welcome}?deposit=1`)
+            } else if (target === 'hyperliquid') {
+              goConfigureExchange(null, 'hyperliquid')
+            } else if (target === 'exchange') {
+              goConfigureExchange(primaryFailingExchangeId(preflight))
+            } else if (target === 'hyperliquid-funds') {
               const next = new URLSearchParams(searchParams)
-              next.set('setup', target)
-              if (target === 'exchange') {
-                const exchangeId = primaryFailingExchangeId(preflight)
-                if (exchangeId) next.set('exchange_id', exchangeId)
-              }
+              next.set('setup', 'hyperliquid-funds')
+              next.set('view', 'autopilot')
               setSearchParams(next)
             }
           }
@@ -454,363 +396,6 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     }
   }
 
-  const handleModelClick = (modelId: string) => {
-    setInitialModelId(null)
-    setEditingModel(modelId)
-    setShowModelModal(true)
-  }
-
-  const handleExchangeClick = (exchangeId: string) => {
-    setInitialExchangeType(null)
-    setEditingExchange(exchangeId)
-    setShowExchangeModal(true)
-  }
-
-  const handleDeleteConfig = async <T extends { id: string }>(config: {
-    id: string
-    type: 'model' | 'exchange'
-    checkInUse: (id: string) => boolean
-    getUsingTraders: (id: string) => any[]
-    cannotDeleteKey: string
-    confirmDeleteKey: string
-    allItems: T[] | undefined
-    clearFields: (item: T) => T
-    buildRequest: (items: T[]) => any
-    updateApi: (request: any) => Promise<void>
-    refreshApi: () => Promise<T[]>
-    setItems: (items: T[]) => void
-    closeModal: () => void
-    errorKey: string
-  }) => {
-    if (config.checkInUse(config.id)) {
-      const usingTraders = config.getUsingTraders(config.id)
-      const traderNames = usingTraders.map((tr) => tr.trader_name).join(', ')
-      toast.error(
-        `${t(config.cannotDeleteKey, language)} · ${t('tradersUsing', language)}: ${traderNames} · ${t('pleaseDeleteTradersFirst', language)}`
-      )
-      return
-    }
-
-    {
-      const ok = await confirmToast(t(config.confirmDeleteKey, language))
-      if (!ok) return
-    }
-
-    try {
-      const updatedItems =
-        config.allItems?.map((item) =>
-          item.id === config.id ? config.clearFields(item) : item
-        ) || []
-
-      const request = config.buildRequest(updatedItems)
-      await config.updateApi(request)
-      toast.success(t('aiTradersToast.configUpdated', language))
-
-      const refreshedItems = await config.refreshApi()
-      config.setItems(refreshedItems)
-
-      config.closeModal()
-    } catch (error) {
-      console.error(`Failed to delete ${config.type} config:`, error)
-      toast.error(t(config.errorKey, language))
-    }
-  }
-
-  const handleDeleteModelConfig = async (modelId: string) => {
-    await handleDeleteConfig({
-      id: modelId,
-      type: 'model',
-      checkInUse: isModelUsedByAnyTrader,
-      getUsingTraders: getTradersUsingModel,
-      cannotDeleteKey: 'cannotDeleteModelInUse',
-      confirmDeleteKey: 'confirmDeleteModel',
-      allItems: allModels,
-      clearFields: (m) => ({
-        ...m,
-        apiKey: '',
-        customApiUrl: '',
-        customModelName: '',
-        enabled: false,
-      }),
-      buildRequest: (models) => ({
-        models: Object.fromEntries(
-          models.map((model) => [
-            model.provider,
-            {
-              enabled: model.enabled,
-              api_key: model.apiKey || '',
-              custom_api_url: model.customApiUrl || '',
-              custom_model_name: model.customModelName || '',
-            },
-          ])
-        ),
-      }),
-      updateApi: api.updateModelConfigs,
-      refreshApi: api.getModelConfigs,
-      setItems: (items) => {
-        setAllModels([...items])
-      },
-      closeModal: () => {
-        setShowModelModal(false)
-        setEditingModel(null)
-      },
-      errorKey: 'deleteConfigFailed',
-    })
-  }
-
-  const handleSaveModelConfig = async (
-    modelId: string,
-    apiKey: string,
-    customApiUrl?: string,
-    customModelName?: string
-  ) => {
-    try {
-      // Prefer the already-saved row (id may be "<user>_claw402") over the
-      // supported-models template id ("claw402"), otherwise every save looks
-      // like a brand-new account.
-      const existingModel = allModels?.find(
-        (m) =>
-          m.id === modelId ||
-          m.provider === modelId ||
-          (modelId && m.provider === modelId)
-      )
-      let updatedModels
-
-      const modelToUpdate =
-        existingModel ||
-        supportedModels?.find(
-          (m) => m.id === modelId || m.provider === modelId
-        )
-      if (!modelToUpdate) {
-        toast.error(t('modelNotExist', language))
-        return
-      }
-
-      if (existingModel) {
-        updatedModels =
-          allModels?.map((m) =>
-            m.id === existingModel.id
-              ? {
-                  ...m,
-                  apiKey: apiKey || m.apiKey || '',
-                  customApiUrl: customApiUrl || m.customApiUrl || '',
-                  customModelName: customModelName || m.customModelName || '',
-                  enabled: true,
-                }
-              : m
-          ) || []
-      } else {
-        const newModel = {
-          ...modelToUpdate,
-          id: modelToUpdate.id || modelToUpdate.provider || modelId,
-          provider: modelToUpdate.provider || modelId,
-          apiKey,
-          customApiUrl: customApiUrl || '',
-          customModelName: customModelName || '',
-          enabled: true,
-        }
-        updatedModels = [...(allModels || []), newModel]
-      }
-
-      const request = {
-        models: Object.fromEntries(
-          updatedModels.map((model) => [
-            // Update by stable row id when present so claw402 keeps the same
-            // wallet; fall back to provider for template-only rows.
-            model.id || model.provider,
-            {
-              enabled: model.enabled,
-              api_key: model.apiKey || '',
-              custom_api_url: model.customApiUrl || '',
-              custom_model_name: model.customModelName || '',
-            },
-          ])
-        ),
-      }
-
-      await api.updateModelConfigs(request)
-      toast.success(t('aiTradersToast.modelConfigUpdated', language))
-
-      const refreshedModels = await api.getModelConfigs()
-      setAllModels(refreshedModels)
-
-      setShowModelModal(false)
-      setEditingModel(null)
-    } catch (error) {
-      const message =
-        error instanceof Error && error.message
-          ? error.message
-          : t('saveConfigFailed', language)
-      toast.error(message)
-      throw new Error(message)
-    }
-  }
-
-  const handleDeleteExchangeConfig = async (exchangeId: string) => {
-    if (isExchangeUsedByAnyTrader(exchangeId)) {
-      const tradersUsing = getTradersUsingExchange(exchangeId)
-      toast.error(
-        `${t('cannotDeleteExchangeInUse', language)}: ${tradersUsing.join(', ')}`
-      )
-      return
-    }
-
-    const ok = await confirmToast(t('confirmDeleteExchange', language))
-    if (!ok) return
-
-    try {
-      await api.deleteExchange(exchangeId)
-      toast.success(t('aiTradersToast.exchangeDeleted', language))
-
-      const refreshedExchanges = await api.getExchangeConfigs()
-      setAllExchanges(refreshedExchanges)
-
-      setShowExchangeModal(false)
-      setEditingExchange(null)
-    } catch (error) {
-      console.error('Failed to delete exchange config:', error)
-      toast.error(t('deleteExchangeConfigFailed', language))
-    }
-  }
-
-  const handleSaveExchangeConfig = async (
-    exchangeId: string | null,
-    exchangeType: string,
-    accountName: string,
-    apiKey: string,
-    secretKey?: string,
-    passphrase?: string,
-    testnet?: boolean,
-    hyperliquidWalletAddr?: string,
-    asterUser?: string,
-    asterSigner?: string,
-    asterPrivateKey?: string,
-    lighterWalletAddr?: string,
-    lighterPrivateKey?: string,
-    lighterApiKeyPrivateKey?: string,
-    lighterApiKeyIndex?: number
-  ) => {
-    try {
-      if (exchangeId) {
-        const existingExchange = allExchanges?.find((e) => e.id === exchangeId)
-        if (!existingExchange) {
-          toast.error(t('exchangeNotExist', language))
-          return
-        }
-
-        const request = {
-          exchanges: {
-            [exchangeId]: {
-              enabled: true,
-              api_key: apiKey || '',
-              secret_key: secretKey || '',
-              passphrase: passphrase || '',
-              testnet: testnet || false,
-              hyperliquid_wallet_addr: hyperliquidWalletAddr || '',
-              hyperliquid_unified_account: exchangeType === 'hyperliquid',
-              aster_user: asterUser || '',
-              aster_signer: asterSigner || '',
-              aster_private_key: asterPrivateKey || '',
-              lighter_wallet_addr: lighterWalletAddr || '',
-              lighter_private_key: lighterPrivateKey || '',
-              lighter_api_key_private_key: lighterApiKeyPrivateKey || '',
-              lighter_api_key_index: lighterApiKeyIndex || 0,
-            },
-          },
-        }
-
-        await api.updateExchangeConfigsEncrypted(request)
-        toast.success(t('aiTradersToast.exchangeConfigUpdated', language))
-      } else {
-        const createRequest = {
-          exchange_type: exchangeType,
-          account_name: accountName,
-          enabled: true,
-          api_key: apiKey || '',
-          secret_key: secretKey || '',
-          passphrase: passphrase || '',
-          testnet: testnet || false,
-          hyperliquid_wallet_addr: hyperliquidWalletAddr || '',
-          hyperliquid_unified_account: exchangeType === 'hyperliquid',
-          aster_user: asterUser || '',
-          aster_signer: asterSigner || '',
-          aster_private_key: asterPrivateKey || '',
-          lighter_wallet_addr: lighterWalletAddr || '',
-          lighter_private_key: lighterPrivateKey || '',
-          lighter_api_key_private_key: lighterApiKeyPrivateKey || '',
-          lighter_api_key_index: lighterApiKeyIndex || 0,
-        }
-
-        await api.createExchangeEncrypted(createRequest)
-        toast.success(t('aiTradersToast.exchangeCreated', language))
-      }
-
-      const refreshedExchanges = await api.getExchangeConfigs()
-      setAllExchanges(refreshedExchanges)
-
-      setShowExchangeModal(false)
-      setEditingExchange(null)
-      await refreshAccountStates()
-    } catch (error) {
-      console.error('Failed to save exchange config:', error)
-      const message =
-        error instanceof Error && error.message
-          ? error.message
-          : t('saveConfigFailed', language)
-      toast.error(message)
-      throw new Error(message)
-    }
-  }
-
-  const handleAddModel = () => {
-    setInitialModelId(null)
-    setEditingModel(null)
-    setShowModelModal(true)
-  }
-
-  const handleAddExchange = () => {
-    setInitialExchangeType(null)
-    setEditingExchange(null)
-    setShowExchangeModal(true)
-  }
-
-  const handleOpenClaw402Config = () => {
-    const configuredClaw402 = allModels?.find(
-      (model) => model.provider === 'claw402'
-    )
-    const supportedClaw402 = supportedModels?.find(
-      (model) => model.provider === 'claw402'
-    )
-    const modelId = configuredClaw402?.id || supportedClaw402?.id || 'claw402'
-
-    setEditingModel(configuredClaw402?.id || null)
-    setInitialModelId(modelId)
-    setShowModelModal(true)
-  }
-
-  const handleOpenHyperliquidConfig = () => {
-    const existingHyperliquid = allExchanges?.find(
-      (exchange) =>
-        exchange.exchange_type === 'hyperliquid' ||
-        exchange.id === 'hyperliquid'
-    )
-
-    setEditingExchange(existingHyperliquid?.id || null)
-    setInitialExchangeType(existingHyperliquid ? null : 'hyperliquid')
-    setShowExchangeModal(true)
-  }
-
-  const handleOpenExchangeConfig = (exchangeId?: string | null) => {
-    if (exchangeId) {
-      const existing = allExchanges?.find((exchange) => exchange.id === exchangeId)
-      setEditingExchange(existing?.id || exchangeId)
-      setInitialExchangeType(null)
-      setShowExchangeModal(true)
-      return
-    }
-    handleAddExchange()
-  }
-
   useEffect(() => {
     if (!user || !token) return
 
@@ -818,17 +403,18 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     if (!setupTarget) return
 
     if (setupTarget === 'claw402') {
-      // The welcome page shows the deposit QR, auto-creates the wallet if
-      // needed, and polls the balance — friendlier than the key-config modal.
       navigate(`${ROUTES.welcome}?deposit=1`)
     } else if (setupTarget === 'hyperliquid') {
-      handleOpenHyperliquidConfig()
+      const existing = allExchanges?.find(
+        (exchange) =>
+          exchange.exchange_type === 'hyperliquid' ||
+          exchange.id === 'hyperliquid'
+      )
+      goConfigureExchange(existing?.id || null, existing ? null : 'hyperliquid')
     } else if (setupTarget === 'exchange') {
-      handleOpenExchangeConfig(searchParams.get('exchange_id'))
+      goConfigureExchange(searchParams.get('exchange_id'))
     } else if (setupTarget === 'hyperliquid-funds') {
       setShowLaunch(true)
-      // Funding shortfall: bring the guided launch panel (with the trading
-      // balance step and live preflight polling) into view.
       document
         .getElementById('autopilot-launch-panel')
         ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -844,15 +430,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     nextParams.delete('setup')
     nextParams.delete('exchange_id')
     setSearchParams(nextParams, { replace: true })
-  }, [
-    allExchanges,
-    allModels,
-    searchParams,
-    setSearchParams,
-    supportedModels,
-    token,
-    user,
-  ])
+  }, [allExchanges, navigate, searchParams, setSearchParams, token, user])
 
   const refreshLaunchState = async () => {
     await Promise.all([loadConfigs(), mutateTraders()])
@@ -868,9 +446,16 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
       isLoggedIn={Boolean(user && token)}
       language={language}
       onRefresh={refreshLaunchState}
-      onOpenClaw402Config={handleOpenClaw402Config}
-      onOpenHyperliquidConfig={handleOpenHyperliquidConfig}
-      onOpenExchangeConfig={handleOpenExchangeConfig}
+      onOpenClaw402Config={() => navigate(`${ROUTES.welcome}?deposit=1`)}
+      onOpenHyperliquidConfig={() => {
+        const existing = allExchanges?.find(
+          (exchange) =>
+            exchange.exchange_type === 'hyperliquid' ||
+            exchange.id === 'hyperliquid'
+        )
+        goConfigureExchange(existing?.id || null, existing ? null : 'hyperliquid')
+      }}
+      onOpenExchangeConfig={(exchangeId) => goConfigureExchange(exchangeId)}
     />
   )
 
@@ -916,10 +501,10 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
             <b>{traders?.length || 0}</b>
           </button>
           <span className="config-nav-label">PREFERENCES</span>
-          <button onClick={() => navigate(ROUTES.settings)}>
+          <button onClick={goResources}>
             <Settings2 size={17} />
             <span>
-              {t('settingsTitle', language)}
+              {t('resourcesTab', language)}
               <small>{t('pageAutopilotSettingsHint', language)}</small>
             </span>
           </button>
@@ -960,31 +545,33 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           )}
           {configView === 'connections' && (
             <>
-              {/* Configuration Status Grid */}
-              {!configError && (
-                <ConfigStatusGrid
-                  configuredModels={configuredModels}
-                  loading={configsLoading}
-                  onAddModel={handleAddModel}
-                  onAddExchange={handleAddExchange}
-                  configuredExchanges={configuredExchanges}
-                  exchangeAccountStates={exchangeAccountStates}
-                  accountStateError={accountStateError}
-                  onCheckAccounts={() => void refreshAccountStates()}
-                  isExchangeAccountStatesLoading={
-                    isExchangeAccountStatesLoading
-                  }
-                  visibleExchangeAddresses={visibleExchangeAddresses}
-                  copiedId={copiedId}
-                  language={language}
-                  getModelUsageInfo={getModelUsageInfo}
-                  getExchangeUsageInfo={getExchangeUsageInfo}
-                  onModelClick={handleModelClick}
-                  onExchangeClick={handleExchangeClick}
-                  onToggleExchangeAddress={toggleExchangeAddressVisibility}
-                  onCopyAddress={handleCopyAddress}
-                />
-              )}
+              <section className="config-resources-hub">
+                <div>
+                  <span className="config-eyebrow">RESOURCES</span>
+                  <h3>{t('resourcesTitle', language)}</h3>
+                  <p>
+                    {configsLoading
+                      ? 'Checking saved connections…'
+                      : `${configuredModels.length} AI · ${configuredExchanges.length} exchange · configure, test, and choose defaults in Settings → Resources.`}
+                  </p>
+                  {configError && (
+                    <p className="config-load-error" role="alert">
+                      {configError}
+                    </p>
+                  )}
+                </div>
+                <div className="config-resources-actions">
+                  <button className="config-primary" onClick={goResources}>
+                    {t('resourcesTab', language)} <ArrowUpRight size={15} />
+                  </button>
+                  <button onClick={() => goConfigureModel()}>
+                    {t('settingsAddModel', language)}
+                  </button>
+                  <button onClick={() => goConfigureExchange()}>
+                    {t('settingsAddExchange', language)}
+                  </button>
+                </div>
+              </section>
 
               <section className="config-next">
                 <span className="config-eyebrow">WHAT’S NEXT?</span>
@@ -1098,40 +685,6 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         />
       )}
 
-      {/* Model Configuration Modal */}
-      {showModelModal && (
-        <ModelConfigModal
-          allModels={supportedModels}
-          configuredModels={allModels}
-          editingModelId={editingModel}
-          initialModelId={initialModelId}
-          onSave={handleSaveModelConfig}
-          onDelete={handleDeleteModelConfig}
-          onClose={() => {
-            setShowModelModal(false)
-            setEditingModel(null)
-            setInitialModelId(null)
-          }}
-          language={language}
-        />
-      )}
-
-      {/* Exchange Configuration Modal */}
-      {showExchangeModal && (
-        <ExchangeConfigModal
-          allExchanges={allExchanges}
-          editingExchangeId={editingExchange}
-          initialExchangeType={initialExchangeType}
-          onSave={handleSaveExchangeConfig}
-          onDelete={handleDeleteExchangeConfig}
-          onClose={() => {
-            setShowExchangeModal(false)
-            setEditingExchange(null)
-            setInitialExchangeType(null)
-          }}
-          language={language}
-        />
-      )}
     </div>
   )
 }

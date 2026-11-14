@@ -91,8 +91,19 @@ export const configApi = {
       `${API_BASE}/models/test`,
       { method: 'POST', data: request, timeout: 60000, silent: true }
     )
-    if (!result.success) {
-      throw new Error(result.message || 'AI connection test failed')
+    const body = result.data
+    const failed =
+      !result.success ||
+      body?.ok === false ||
+      Boolean(body?.error) ||
+      Boolean(result.errorData?.ok === false)
+    if (failed) {
+      const message =
+        body?.error ||
+        result.message ||
+        (result.errorData as { error?: string } | undefined)?.error ||
+        'AI connection test failed'
+      throw new Error(message)
     }
   },
 
@@ -128,9 +139,22 @@ export const configApi = {
 
     if (!config.transport_encryption) {
       // Transport encryption disabled, send plaintext
-      const result = await httpClient.put(`${API_BASE}/models`, request)
-      if (!result.success)
-        throw new Error(result.message || 'Failed to update model configs')
+      const result = await httpClient.put<{ ok?: boolean; error?: string }>(
+        `${API_BASE}/models`,
+        request
+      )
+      if (
+        !result.success ||
+        result.data?.ok === false ||
+        result.errorData?.ok === false
+      ) {
+        throw new Error(
+          result.data?.error ||
+            (result.errorData as { error?: string } | undefined)?.error ||
+            result.message ||
+            'Failed to update model configs'
+        )
+      }
       return
     }
 
@@ -152,9 +176,22 @@ export const configApi = {
     )
 
     // Send encrypted data
-    const result = await httpClient.put(`${API_BASE}/models`, encryptedPayload)
-    if (!result.success)
-      throw new Error(result.message || 'Failed to update model configs')
+    const result = await httpClient.put<{ ok?: boolean; error?: string }>(
+      `${API_BASE}/models`,
+      encryptedPayload
+    )
+    if (
+      !result.success ||
+      result.data?.ok === false ||
+      result.errorData?.ok === false
+    ) {
+      throw new Error(
+        result.data?.error ||
+          (result.errorData as { error?: string } | undefined)?.error ||
+          result.message ||
+          'Failed to update model configs'
+      )
+    }
   },
 
   async getExchangeConfigs(): Promise<Exchange[]> {

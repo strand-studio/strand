@@ -212,7 +212,7 @@ export function ChartTabs({
 
   return (
     <div
-      className={`strand-glass rounded-lg border border-[rgba(25,36,52,0.1)] relative z-10 w-full flex flex-col transition-all duration-300 ${
+      className={`strand-glass rounded-lg border border-strand-border/70 relative z-10 w-full flex flex-col transition-all duration-300 ${
         typeof window !== 'undefined' && window.innerWidth < 768
           ? 'h-[500px]'
           : 'h-[600px]'
@@ -225,7 +225,7 @@ export function ChartTabs({
       */}
       <div
         className="relative z-20 flex flex-wrap md:flex-nowrap items-center justify-between gap-y-2 px-3 py-2 shrink-0 backdrop-blur-md bg-strand-bg/80 rounded-t-lg"
-        style={{ borderBottom: '1px solid rgba(25,36,52, 0.14)' }}
+        style={{ borderBottom: '1px solid var(--panel-border)' }}
       >
         {/* Left: Tab Switcher */}
         <div className="flex flex-wrap items-center gap-1">
@@ -234,7 +234,7 @@ export function ChartTabs({
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium transition-all ${
               activeTab === 'equity'
                 ? 'bg-strand-gold/10 text-strand-gold border border-strand-gold/20'
-                : 'text-strand-text-muted hover:text-strand-text-main hover:bg-black/5'
+                : 'text-strand-text-muted hover:text-strand-text-main hover:bg-strand-text/5'
             }`}
           >
             <BarChart3 className="w-3.5 h-3.5" />
@@ -249,7 +249,7 @@ export function ChartTabs({
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium transition-all ${
               activeTab === 'kline'
                 ? 'bg-strand-gold/10 text-strand-gold border border-strand-gold/20'
-                : 'text-strand-text-muted hover:text-strand-text-main hover:bg-black/5'
+                : 'text-strand-text-muted hover:text-strand-text-main hover:bg-strand-text/5'
             }`}
           >
             <CandlestickChart className="w-3.5 h-3.5" />
@@ -261,7 +261,7 @@ export function ChartTabs({
 
           {/* Market Type Pills - Only when kline active, HIDDEN on mobile to save space */}
           {activeTab === 'kline' && (
-            <div className="hidden md:flex items-center gap-1 ml-2 border-l border-[rgba(25,36,52,0.14)] pl-2">
+            <div className="hidden md:flex items-center gap-1 ml-2 border-l border-strand-border pl-2">
               {(Object.keys(MARKET_CONFIG) as MarketType[]).map((type) => {
                 const config = MARKET_CONFIG[type]
                 const isActive = marketType === type
@@ -272,7 +272,7 @@ export function ChartTabs({
                     className={`px-2.5 py-1 text-[10px] font-medium rounded transition-all border ${
                       isActive
                         ? 'bg-strand-gold/10 text-strand-gold border-strand-gold/20'
-                        : 'text-strand-text-muted border-transparent hover:text-strand-text-main hover:bg-black/5'
+                        : 'text-strand-text-muted border-transparent hover:text-strand-text-main hover:bg-strand-text/5'
                     }`}
                   >
                     <span className="mr-1 opacity-70">{config.icon}</span>
@@ -293,7 +293,7 @@ export function ChartTabs({
                 <>
                   <button
                     onClick={() => setShowDropdown(!showDropdown)}
-                    className="flex items-center gap-1.5 px-2.5 py-1 bg-strand-bg-deeper border border-[rgba(25,36,52,0.14)] rounded-sm text-[11px] font-bold text-strand-text-main hover:border-strand-gold/30 hover:text-strand-gold transition-all"
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-strand-bg-deeper border border-strand-border rounded-sm text-[11px] font-bold text-strand-text-main hover:border-strand-gold/30 hover:text-strand-gold transition-all"
                   >
                     <span>{chartSymbolDisplay}</span>
                     <ChevronDown
@@ -301,9 +301,9 @@ export function ChartTabs({
                     />
                   </button>
                   {showDropdown && (
-                    <div className="absolute top-full right-0 mt-2 w-64 bg-strand-bg-lighter border border-[rgba(25,36,52,0.14)] rounded-lg shadow-[0_10px_40px_-10px_rgba(25,36,52,0.2)] z-50 overflow-hidden strand-glass ring-1 ring-[rgba(25,36,52,0.08)]">
-                      <div className="p-2 border-b border-[rgba(25,36,52,0.1)]">
-                        <div className="flex items-center gap-2 px-2 py-1.5 bg-strand-bg-deeper rounded-sm border border-[rgba(25,36,52,0.14)] focus-within:border-strand-gold/50 transition-colors">
+                    <div className="absolute top-full right-0 mt-2 w-64 bg-strand-bg-lighter border border-strand-border rounded-lg shadow-[0_10px_40px_-10px_rgba(25,36,52,0.2)] z-50 overflow-hidden strand-glass ring-1 ring-strand-border/60">
+                      <div className="p-2 border-b border-strand-border/70">
+                        <div className="flex items-center gap-2 px-2 py-1.5 bg-strand-bg-deeper rounded-sm border border-strand-border focus-within:border-strand-gold/50 transition-colors">
                           <Search className="w-3.5 h-3.5 text-strand-text-muted" />
                           <input
                             type="text"
@@ -338,7 +338,7 @@ export function ChartTabs({
                           }
                           return (
                             <div key={category}>
-                              <div className="px-3 py-1.5 text-[9px] font-bold text-strand-text-muted/60 bg-black/5 uppercase tracking-wider">
+                              <div className="px-3 py-1.5 text-[9px] font-bold text-strand-text-muted/60 bg-strand-text/5 uppercase tracking-wider">
                                 {labels[category]}
                               </div>
                               {categorySymbols.map((s) => (
@@ -349,7 +349,7 @@ export function ChartTabs({
                                     setShowDropdown(false)
                                     setSearchFilter('')
                                   }}
-                                  className={`w-full px-3 py-2 text-left text-[11px] font-mono hover:bg-black/5 transition-all flex items-center justify-between ${chartSymbol === s.symbol ? 'bg-strand-gold/10 text-strand-gold' : 'text-strand-text-muted'}`}
+                                  className={`w-full px-3 py-2 text-left text-[11px] font-mono hover:bg-strand-text/5 transition-all flex items-center justify-between ${chartSymbol === s.symbol ? 'bg-strand-gold/10 text-strand-gold' : 'text-strand-text-muted'}`}
                                 >
                                   <span>{s.display || s.symbol}</span>
                                   <span className="text-[9px] opacity-40">
@@ -365,14 +365,14 @@ export function ChartTabs({
                   )}
                 </>
               ) : (
-                <span className="px-2.5 py-1 bg-strand-bg-deeper border border-[rgba(25,36,52,0.14)] rounded-sm text-[11px] font-bold text-strand-text-main font-mono">
+                <span className="px-2.5 py-1 bg-strand-bg-deeper border border-strand-border rounded-sm text-[11px] font-bold text-strand-text-main font-mono">
                   {chartSymbol}
                 </span>
               )}
             </div>
 
             {/* Interval Selector - Allow scrolling if needed */}
-            <div className="flex items-center bg-strand-bg-deeper rounded-sm border border-[rgba(25,36,52,0.14)] overflow-x-auto no-scrollbar max-w-[200px] md:max-w-none">
+            <div className="flex items-center bg-strand-bg-deeper rounded-sm border border-strand-border overflow-x-auto no-scrollbar max-w-[200px] md:max-w-none">
               {INTERVALS.map((int) => (
                 <button
                   key={int.value}
@@ -380,7 +380,7 @@ export function ChartTabs({
                   className={`px-2 py-1 text-[10px] font-medium transition-all ${
                     interval === int.value
                       ? 'bg-strand-gold/20 text-strand-gold'
-                      : 'text-strand-text-muted hover:text-strand-text hover:bg-black/5'
+                      : 'text-strand-text-muted hover:text-strand-text hover:bg-strand-text/5'
                   }`}
                 >
                   {int.label}
@@ -398,11 +398,11 @@ export function ChartTabs({
                 value={symbolInput}
                 onChange={(e) => setSymbolInput(e.target.value)}
                 placeholder="Sym"
-                className="w-16 px-2 py-1 bg-strand-bg-deeper border border-[rgba(25,36,52,0.14)] rounded-l text-[10px] text-strand-text placeholder-strand-text-muted focus:outline-hidden focus:border-strand-gold/50 font-mono transition-colors"
+                className="w-16 px-2 py-1 bg-strand-bg-deeper border border-strand-border rounded-l text-[10px] text-strand-text placeholder-strand-text-muted focus:outline-hidden focus:border-strand-gold/50 font-mono transition-colors"
               />
               <button
                 type="submit"
-                className="px-2 py-1 bg-black/5 border border-[rgba(25,36,52,0.14)] border-l-0 rounded-r text-[10px] text-strand-text-muted hover:text-strand-text hover:bg-black/10 transition-all"
+                className="px-2 py-1 bg-strand-text/5 border border-strand-border border-l-0 rounded-r text-[10px] text-strand-text-muted hover:text-strand-text hover:bg-strand-text/10 transition-all"
               >
                 Go
               </button>

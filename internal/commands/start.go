@@ -18,23 +18,24 @@ import (
 )
 
 var StartCommand = &cli.Command{
-	Name:    "start",
-	Aliases: []string{"up"},
-	Usage:   "启动消息通道、交易与 API 服务",
-	Flags:   startFlags,
-	Action:  startAction,
+	Name:        "start",
+	Aliases:     []string{"up"},
+	Usage:       "Start messaging, trading, and the HTTP API",
+	Description: "Loads config, starts the engine, and serves the API (default http://127.0.0.1:8080).\nUse --detach to run in the background; then strand stop / strand status / strand daemon logs.",
+	Flags:       startFlags,
+	Action:      startAction,
 }
 
 var startFlags = []cli.Flag{
 	&cli.BoolFlag{
 		Name:    "detach",
 		Aliases: []string{"d"},
-		Usage:   "后台运行（写入 pid / log）",
+		Usage:   "Run in background (writes pid + log under the data dir)",
 	},
 	&cli.BoolFlag{
 		Name:   "foreground",
 		Hidden: true,
-		Usage:  "internal: run in foreground after detach re-exec",
+		Usage:  "Internal: run in foreground after detach re-exec",
 	},
 }
 
@@ -49,7 +50,7 @@ func startAction(ctx *cli.Context) error {
 	}
 
 	if alive, pid := runningPID(cfg); alive && pid != os.Getpid() {
-		return finish(fmt.Sprintf("服务已在运行 (pid %d)。先执行 strand stop", pid), fmt.Errorf("already running"))
+		return finish(fmt.Sprintf("already running (pid %d); run strand stop first", pid), fmt.Errorf("already running"))
 	}
 
 	return runServer(ctx.Context, cfg, versionFrom(ctx))
@@ -57,7 +58,7 @@ func startAction(ctx *cli.Context) error {
 
 func startDetached(ctx *cli.Context, cfg settings.Settings) error {
 	if alive, pid := runningPID(cfg); alive {
-		return finish(fmt.Sprintf("服务已在运行 (pid %d)", pid), fmt.Errorf("already running"))
+		return finish(fmt.Sprintf("already running (pid %d)", pid), fmt.Errorf("already running"))
 	}
 	if err := os.MkdirAll(cfg.Data.Dir, 0o755); err != nil {
 		return finish("", err)
@@ -106,7 +107,7 @@ func startDetached(ctx *cli.Context, cfg settings.Settings) error {
 	select {
 	case err := <-done:
 		_ = os.Remove(cfg.ProcPath())
-		msg := fmt.Sprintf("后台进程立刻退出了，请查看日志: %s", cfg.LogPath())
+		msg := fmt.Sprintf("detached process exited immediately; check logs: %s", cfg.LogPath())
 		if err != nil {
 			return finish(msg, err)
 		}
@@ -120,7 +121,7 @@ func startDetached(ctx *cli.Context, cfg settings.Settings) error {
 		pid = p
 	}
 
-	return finish(fmt.Sprintf("已在后台启动 (pid %d)\nAPI: http://%s\n日志: %s", pid, cfg.Addr(), cfg.LogPath()), nil)
+	return finish(fmt.Sprintf("started in background (pid %d)\nAPI: http://%s\nlog: %s", pid, cfg.Addr(), cfg.LogPath()), nil)
 }
 
 func runServer(parent context.Context, cfg settings.Settings, version string) error {

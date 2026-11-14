@@ -166,7 +166,7 @@ export function MarketsPage() {
     sortKey === key ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''
 
   const frontierHref = (symbol: string) =>
-    `${ROUTES.planning}?symbol=${encodeURIComponent(symbol)}`
+    `${ROUTES.planning}?symbol=${encodeURIComponent(symbol)}&venue=${encodeURIComponent(exchange)}`
   const chatHref = (symbol: string) =>
     `${ROUTES.chat}?q=${encodeURIComponent(symbol)}`
 

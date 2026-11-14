@@ -34,6 +34,11 @@ func (s *Service) resolveChatModel(userID, modelID string) (*store.AIModel, erro
 		return nil, errStoreUnavailable
 	}
 	want := strings.TrimSpace(modelID)
+	if want == "" {
+		if d, err := st.Resources().GetDefaults(userID); err == nil && d != nil {
+			want = strings.TrimSpace(d.DefaultModelID)
+		}
+	}
 	if want != "" {
 		if m, err := st.AIModel().Get(userID, want); err == nil && m != nil {
 			return m, nil

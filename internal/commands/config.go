@@ -12,25 +12,27 @@ import (
 
 var ConfigCommand = &cli.Command{
 	Name:  "config",
-	Usage: "查看或生成配置",
+	Usage: "Show or create configuration",
 	Subcommands: []*cli.Command{
 		{
-			Name:   "show",
-			Usage:  "打印当前配置，密钥只显示前后几位",
-			Action: configShowAction,
+			Name:        "show",
+			Usage:        "Print the active config (secrets masked)",
+			Description: "Shows data dir, API bind, database, runtime, and project/channel summary.",
+			Action:      configShowAction,
 		},
 		{
 			Name:  "init",
-			Usage:  "在默认路径生成配置与 .env",
+			Usage:  "Create config.toml and .env under the data directory",
+			Description: "Default data dir is ~/.strand. Use --force to overwrite an existing config.",
 			Flags: []cli.Flag{
-				&cli.BoolFlag{Name: "force", Usage: "覆盖已经存在的配置"},
-				&cli.StringFlag{Name: "dir", Usage: "数据目录（默认 ~/.strand）"},
+				&cli.BoolFlag{Name: "force", Usage: "Overwrite an existing config"},
+				&cli.StringFlag{Name: "dir", Usage: "Data directory (default ~/.strand)"},
 			},
 			Action: configInitAction,
 		},
 		{
 			Name:   "path",
-			Usage:  "打印将要使用的配置文件路径",
+			Usage:  "Print the resolved config file path",
 			Action: configPathAction,
 		},
 	},
@@ -71,7 +73,7 @@ func configShowAction(ctx *cli.Context) error {
 	if v := os.Getenv("JWT_SECRET"); v != "" {
 		fmt.Fprintf(&b, "jwt:      %s\n", secretLabel(v))
 	} else {
-		fmt.Fprintf(&b, "jwt:      (未设置 JWT_SECRET)\n")
+		fmt.Fprintf(&b, "jwt:      (JWT_SECRET not set)\n")
 	}
 	return finish(b.String(), nil)
 }
@@ -89,14 +91,15 @@ func configInitAction(ctx *cli.Context) error {
 		return finish("", err)
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "已初始化 Strand 配置\n")
-	fmt.Fprintf(&b, "  数据目录  %s\n", res.DataDir)
-	fmt.Fprintf(&b, "  配置文件  %s\n", res.ConfigPath)
-	fmt.Fprintf(&b, "  密钥文件  %s\n", res.EnvPath)
-	fmt.Fprintf(&b, "\n下一步:\n")
-	fmt.Fprintf(&b, "  1. 编辑配置，按需取消注释 [[projects]] 接入微信等通道\n")
-	fmt.Fprintf(&b, "  2. 在 .env 中填写平台 Token\n")
-	fmt.Fprintf(&b, "  3. 运行: strand start\n")
+	fmt.Fprintf(&b, "Initialized Strand config\n")
+	fmt.Fprintf(&b, "  data dir   %s\n", res.DataDir)
+	fmt.Fprintf(&b, "  config     %s\n", res.ConfigPath)
+	fmt.Fprintf(&b, "  secrets    %s\n", res.EnvPath)
+	fmt.Fprintf(&b, "\nNext steps:\n")
+	fmt.Fprintf(&b, "  1. Review config.toml; prefer `strand messaging …` or Settings → Messaging for channels\n")
+	fmt.Fprintf(&b, "  2. Fill tokens in .env (JWT_SECRET, STRAND_API_TOKEN, platform tokens)\n")
+	fmt.Fprintf(&b, "  3. Run: strand start\n")
+	fmt.Fprintf(&b, "  4. Web: cd web && pnpm install && pnpm run dev\n")
 	return finish(b.String(), nil)
 }
 
@@ -114,14 +117,14 @@ func configPathAction(ctx *cli.Context) error {
 func secretLabel(s string) string {
 	m := settings.Mask(s)
 	if m == "" {
-		return "(空)"
+		return "(empty)"
 	}
 	return m
 }
 
 func emptyDash(s string) string {
 	if strings.TrimSpace(s) == "" {
-		return "(未找到文件，使用默认值)"
+		return "(no file found; using defaults)"
 	}
 	return s
 }

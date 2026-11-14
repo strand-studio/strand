@@ -88,10 +88,10 @@ export const coinSource = {
     en: 'Add Excluded',
     es: 'Agregar Excluida',
   },
-  nofxosNote: {
-    zh: '使用量化信号 API Key（在指标配置中设置；兼容旧版 NofxOS）',
-    en: 'Uses quant signal API key (set in Indicators; legacy NofxOS-compatible)',
-    es: 'Usa API Key de señales cuant (compatible NofxOS legado)',
+  quantSignalNote: {
+    zh: '使用量化信号 API Key（在指标配置中设置）',
+    en: 'Uses quant signal API key (set in Indicators)',
+    es: 'Usa API Key de señales cuant (configurar en Indicadores)',
   },
   ai500Desc: {
     zh: '使用 AI500 智能筛选的热门币种',
@@ -714,17 +714,17 @@ export const indicator = {
     en: '💡 Tip: AI can calculate these, enabling reduces AI workload',
     es: '💡 AI puede calcularlos',
   },
-  nofxosTitle: {
+  quantSignalTitle: {
     zh: '量化信号数据源',
     en: 'Quant signal data provider',
     es: 'Proveedor de señales cuant',
   },
-  nofxosDesc: {
+  quantSignalDesc: {
     zh: '可选的加密量化筛选数据（AI500 / OI 等；Autopilot 主路径用 Claw402）',
     en: 'Optional crypto quant filters (AI500 / OI, etc.; Autopilot main path uses Claw402)',
     es: 'Filtros cuant opcionales (AI500 / OI; Autopilot usa Claw402)',
   },
-  nofxosFeatures: {
+  quantSignalFeatures: {
     zh: 'AI500 · OI排行 · 资金流向 · 涨跌榜',
     en: 'AI500 · OI Ranking · Fund Flow · Price Ranking',
     es: 'AI500 · OI · NetFlow · Ranking',
@@ -739,7 +739,7 @@ export const indicator = {
   fillDefault: { zh: '填入默认', en: 'Fill Default', es: 'Llenar Default' },
   connected: { zh: '已配置', en: 'Configured', es: 'Configurado' },
   notConfigured: { zh: '未配置', en: 'Not Configured', es: 'No Configurado' },
-  nofxosDataSources: {
+  quantSignalDataSources: {
     zh: '量化信号数据源',
     en: 'Quant signal data sources',
     es: 'Fuentes de señales cuant',
