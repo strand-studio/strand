@@ -188,7 +188,11 @@ func executionPosition(side string, hedge bool) futures.PositionSideType {
 }
 
 func (b *FuturesTrader) SubmitOrder(ctx context.Context, o execution.Order) (execution.Order, error) {
-	if o.Type != "" && (o.Type != "market" || o.Role != "entry" || o.PostOnly) {
+	// Empty / "limit" → limit entry (or empty-typed protections). "market" only for entry.
+	switch {
+	case o.Type == "" || o.Type == "limit":
+	case o.Type == "market" && o.Role == "entry" && !o.PostOnly:
+	default:
 		return o, errors.New("unsupported execution order type")
 	}
 	nativeID, err := b.nativeClientID(o)

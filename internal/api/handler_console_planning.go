@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -14,17 +15,13 @@ import (
 
 	"strand/internal/market"
 	"strand/internal/planning/core"
+	"strand/internal/planning/live"
 	"strand/internal/provider/hyperliquid"
 	"strand/internal/store"
 	"strand/internal/trader/types"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gin-gonic/gin"
-)
-
-// Live order submission (approve/execute/stop/…) is not wired in this build.
-// Readonly + compile endpoints keep Trade usable for planning without faking fills.
-var errPlanningLiveUnavailable = errors.New(
-	"Live order submission is not available in this build. Plans can be compiled and reviewed; Autopilot traders still place exchange orders.",
 )
 
 var (
@@ -37,12 +34,12 @@ var (
 
 type planningUserState struct {
 	Records map[string]planningRecord `json:"records"`
-	Runs    []gin.H                   `json:"runs"`
 }
 
 type planningRecord struct {
-	Plan  core.Plan `json:"plan"`
-	State string    `json:"state"`
+	Plan       core.Plan `json:"plan"`
+	State      string    `json:"state"`
+	ExchangeID string    `json:"exchange_id,omitempty"`
 }
 
 func (s *Service) userPlanningState(userID string) *planningUserState {
@@ -50,7 +47,7 @@ func (s *Service) userPlanningState(userID string) *planningUserState {
 	defer planningStateMu.Unlock()
 	st, ok := planningStates[userID]
 	if !ok || st == nil {
-		st = &planningUserState{Records: map[string]planningRecord{}, Runs: []gin.H{}}
+		st = &planningUserState{Records: map[string]planningRecord{}}
 		planningStates[userID] = st
 	}
 	if st.Records == nil {
@@ -59,19 +56,77 @@ func (s *Service) userPlanningState(userID string) *planningUserState {
 	return st
 }
 
+func (s *Service) planningLiveEngine() (*live.Engine, error) {
+	st := s.eng.Store()
+	if st == nil || st.GormDB() == nil {
+		return nil, errStoreUnavailable
+	}
+	factory := func(ctx context.Context, userID, exchangeID string) (live.Broker, string, error) {
+		_ = ctx
+		return buildPlanningBroker(st, userID, exchangeID)
+	}
+	snap := func(ctx context.Context, userID, exchangeID, venue, symbol string) (core.Snapshot, error) {
+		var trader types.Trader
+		if exchangeID != "" {
+			ex, err := st.Exchange().GetByID(userID, exchangeID)
+			if err != nil || ex == nil {
+				return core.Snapshot{}, errors.New("exchange account not found")
+			}
+			trader, err = buildCredentialExchangeTrader(exchangeCredentialFromStore(userID, ex))
+			if err != nil {
+				return core.Snapshot{}, err
+			}
+		}
+		return s.buildPlanningSnapshot(ctx, trader, venue, symbol, time.Now().UTC())
+	}
+	return live.NewEngine(st.GormDB(), factory, snap), nil
+}
+
+func liveRunJSON(v live.View) gin.H {
+	return gin.H{
+		"id":            v.ID,
+		"exchange_id":   v.ExchangeID,
+		"plan_id":       v.PlanID,
+		"plan_hash":     v.PlanHash,
+		"approval_hash": v.ApprovalHash,
+		"updated_at":    v.UpdatedAt.UTC().Format(time.RFC3339Nano),
+		"state":         v.State,
+		"error":         v.Error,
+		"plan":          v.Plan,
+		"orders":        v.Orders,
+	}
+}
+
 func (s *Service) consolePlanningState(c *gin.Context) {
 	userID := currentUserID(c)
 	st := s.userPlanningState(userID)
 	planningStateMu.RLock()
 	records := make(map[string]planningRecord, len(st.Records))
+	accounts := map[string]string{}
 	for k, v := range st.Records {
 		records[k] = v
+		if v.ExchangeID != "" {
+			accounts[v.Plan.ID] = v.ExchangeID
+		}
 	}
-	runs := append([]gin.H{}, st.Runs...)
 	planningStateMu.RUnlock()
+
+	runs := []gin.H{}
+	if eng, err := s.planningLiveEngine(); err == nil {
+		if views, lerr := eng.ListViews(userID); lerr == nil {
+			runs = make([]gin.H, 0, len(views))
+			for _, v := range views {
+				runs = append(runs, liveRunJSON(v))
+				if v.PlanID != "" && v.ExchangeID != "" {
+					accounts[v.PlanID] = v.ExchangeID
+				}
+			}
+		}
+	}
+
 	writeJSON(c, http.StatusOK, gin.H{
 		"records":  records,
-		"accounts": map[string]string{},
+		"accounts": accounts,
 		"runs":     runs,
 		"mode":     "live",
 		"now":      time.Now().UTC().Format(time.RFC3339Nano),
@@ -79,7 +134,29 @@ func (s *Service) consolePlanningState(c *gin.Context) {
 }
 
 func (s *Service) consolePlanningConversations(c *gin.Context) {
-	writeJSON(c, http.StatusOK, []any{})
+	userID := currentUserID(c)
+	st := s.eng.Store()
+	if st == nil {
+		writeJSON(c, http.StatusOK, []any{})
+		return
+	}
+	rows, err := st.PlanningConversations().List(userID, 40)
+	if err != nil {
+		writeErr(c, http.StatusInternalServerError, err)
+		return
+	}
+	out := make([]gin.H, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, gin.H{
+			"id":          row.ID,
+			"symbol":      row.Symbol,
+			"exchange_id": row.ExchangeID,
+			"model_id":    row.ModelID,
+			"messages":    row.Messages,
+			"updated_at":  row.UpdatedAt.UTC().Format(time.RFC3339Nano),
+		})
+	}
+	writeJSON(c, http.StatusOK, out)
 }
 
 func (s *Service) consolePlanningPreferencesGet(c *gin.Context) {
@@ -110,19 +187,80 @@ func (s *Service) consolePlanningPreferencesPut(c *gin.Context) {
 }
 
 func (s *Service) consolePlanningSetupWallet(c *gin.Context) {
-	if c.Request.Method == http.MethodPost {
-		writeErr(c, http.StatusNotImplemented, errors.New(
-			"Claw402 fee wallet setup is not available in this build. Use a direct AI provider key in Settings, or Autopilot traders for live execution.",
-		))
+	userID := currentUserID(c)
+	st := s.eng.Store()
+	if st == nil {
+		writeErr(c, http.StatusServiceUnavailable, errStoreUnavailable)
 		return
 	}
-	// Soft empty wallet: FrontierSetup treats found=false as "missing" without 404.
+
+	if c.Request.Method == http.MethodPost {
+		var body struct {
+			ModelID string `json:"model_id"`
+		}
+		_ = c.ShouldBindJSON(&body)
+		modelID, address, _, enabled, found := s.findClaw402Model(userID)
+		if found {
+			if !enabled && modelID != "" {
+				_ = st.AIModel().UpdateWithName(userID, modelID, "Claw402", true, "", "", beginnerDefaultModel)
+			}
+		} else {
+			// Create a fee wallet the same way beginner onboarding does.
+			pk, err := crypto.GenerateKey()
+			if err != nil {
+				writeErr(c, http.StatusInternalServerError, err)
+				return
+			}
+			priv := "0x" + hex.EncodeToString(crypto.FromECDSA(pk))
+			address = crypto.PubkeyToAddress(pk.PublicKey).Hex()
+			if err := st.AIModel().UpdateWithName(
+				userID, "claw402", "Claw402", true, priv, "", beginnerDefaultModel,
+			); err != nil {
+				writeErr(c, http.StatusInternalServerError, err)
+				return
+			}
+			modelID, address, _, _, found = s.findClaw402Model(userID)
+			if !found {
+				writeErr(c, http.StatusInternalServerError, errors.New("failed to persist Claw402 fee wallet"))
+				return
+			}
+		}
+		_ = body
+		bal, status := cachedBaseUSDCBalance(address)
+		writeJSON(c, http.StatusOK, gin.H{
+			"found":          true,
+			"enabled":        true,
+			"address":        address,
+			"model_id":       modelID,
+			"chain":          "base",
+			"asset":          "USDC",
+			"balance_usdc":   bal,
+			"balance_status": status,
+		})
+		return
+	}
+
+	modelID, address, _, enabled, found := s.findClaw402Model(userID)
+	if !found {
+		writeJSON(c, http.StatusOK, gin.H{
+			"found":          false,
+			"enabled":        false,
+			"chain":          "base",
+			"asset":          "USDC",
+			"balance_status": "unavailable",
+		})
+		return
+	}
+	bal, status := cachedBaseUSDCBalance(address)
 	writeJSON(c, http.StatusOK, gin.H{
-		"found":          false,
-		"enabled":        false,
+		"found":          true,
+		"enabled":        enabled,
+		"address":        address,
+		"model_id":       modelID,
 		"chain":          "base",
 		"asset":          "USDC",
-		"balance_status": "unavailable",
+		"balance_usdc":   bal,
+		"balance_status": status,
 	})
 }
 
@@ -215,11 +353,33 @@ func (s *Service) consolePlanningMarkets(c *gin.Context) {
 }
 
 func (s *Service) consolePlanningAI500(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 25*time.Second)
+	defer cancel()
+	// Paid Claw402 AI500 feed is not wired; expose Binance volume board as a
+	// usable long-candidate shortcut with an explicit proxy source.
+	coins := make([]gin.H, 0)
+	source := "binance_volume_proxy"
+	message := "Claw402 AI500 paid feed is not wired; showing Binance USDT perpetual volume leaders as a temporary shortcut."
+	if market.SupportsLiveCEXBoard("binance") {
+		live, err := market.FetchCEXBoard(ctx, "binance", 80)
+		if err != nil {
+			market.LogCEXBoardError("binance ai500 proxy", err)
+			message = err.Error()
+			source = "unavailable"
+		} else {
+			for _, coin := range live {
+				coins = append(coins, gin.H{
+					"pair":  coin.Symbol,
+					"score": coin.Volume24h,
+				})
+			}
+		}
+	}
 	writeJSON(c, http.StatusOK, gin.H{
-		"coins":      []any{},
-		"source":     "unavailable",
+		"coins":      coins,
+		"source":     source,
 		"fetched_at": time.Now().UTC().Format(time.RFC3339Nano),
-		"message":    "AI500 paid data is not wired in this build",
+		"message":    message,
 	})
 }
 
@@ -479,7 +639,11 @@ func (s *Service) consolePlanningCompile(c *gin.Context) {
 
 	st := s.userPlanningState(userID)
 	planningStateMu.Lock()
-	st.Records[plan.ID] = planningRecord{Plan: plan, State: "draft"}
+	st.Records[plan.ID] = planningRecord{
+		Plan:       plan,
+		State:      "draft",
+		ExchangeID: strings.TrimSpace(body.ExchangeID),
+	}
 	planningStateMu.Unlock()
 
 	writeJSON(c, http.StatusOK, plan)
@@ -501,7 +665,10 @@ func (s *Service) buildPlanningSnapshot(ctx context.Context, trader types.Trader
 		return core.Snapshot{}, errors.New("could not resolve market price for snapshot")
 	}
 
-	tick, step, minQty, minNotional := inferInstrumentRules(price)
+	instCtx, cancel := planningInstrumentHTTPTimeout(ctx)
+	defer cancel()
+	rules := s.resolvePlanningInstrument(instCtx, venue, symbol, price)
+	tick, step, minQty, minNotional := rules.Tick, rules.Step, rules.MinQty, rules.MinNotional
 	// Synthetic top-of-book within a tiny spread so Compile entry checks pass.
 	half := price * 0.00005
 	if half < mustFloat(tick) {
@@ -516,21 +683,22 @@ func (s *Service) buildPlanningSnapshot(ctx context.Context, trader types.Trader
 
 	base, quote := splitSymbolAssets(venue, symbol)
 	return core.Snapshot{
-		Venue:       venue,
-		Symbol:      symbol,
-		Kind:        "perpetual",
-		BaseAsset:   base,
-		QuoteAsset:  quote,
-		Bid:         formatPlanningDecimal(bid),
-		Ask:         formatPlanningDecimal(ask),
-		BidSize:     formatPlanningDecimal(size),
-		AskSize:     formatPlanningDecimal(size),
-		Tick:        tick,
-		Step:        step,
-		MinQty:      formatPlanningDecimal(minQty),
-		MinNotional: formatPlanningDecimal(minNotional),
-		Observed:    now,
-		SourceTime:  now,
+		Venue:         venue,
+		Symbol:        symbol,
+		Kind:          "perpetual",
+		BaseAsset:     base,
+		QuoteAsset:    quote,
+		ContractValue: rules.ContractValue,
+		Bid:           formatPlanningDecimal(bid),
+		Ask:           formatPlanningDecimal(ask),
+		BidSize:       formatPlanningDecimal(size),
+		AskSize:       formatPlanningDecimal(size),
+		Tick:          tick,
+		Step:          step,
+		MinQty:        formatPlanningDecimal(minQty),
+		MinNotional:   formatPlanningDecimal(minNotional),
+		Observed:      now,
+		SourceTime:    now,
 	}, nil
 }
 
@@ -625,33 +793,553 @@ func floorToTick(v float64, tick core.Decimal) float64 {
 	return math.Floor(v/t+1e-12) * t
 }
 
-func (s *Service) consolePlanningLiveUnavailable(c *gin.Context) {
-	writeErr(c, http.StatusNotImplemented, errPlanningLiveUnavailable)
+var errAutopilotRunning = errors.New("Stop Autopilot for this account in Portfolio before manually trading.")
+
+func (s *Service) assertNoRunningAutopilot(userID, exchangeID string) error {
+	exchangeID = strings.TrimSpace(exchangeID)
+	if exchangeID == "" {
+		return nil
+	}
+	st := s.eng.Store()
+	if st == nil {
+		return errStoreUnavailable
+	}
+	traders, err := st.Trader().ListByExchangeID(userID, exchangeID)
+	if err != nil {
+		return err
+	}
+	for _, tr := range traders {
+		if tr != nil && tr.IsRunning {
+			return errAutopilotRunning
+		}
+	}
+	return nil
 }
 
-func (s *Service) consolePlanningClosePosition(c *gin.Context) {
-	writeJSON(c, http.StatusNotImplemented, gin.H{
-		"error":       errPlanningLiveUnavailable.Error(),
+func (s *Service) consolePlanningApprove(c *gin.Context) {
+	var body struct {
+		PlanID              string `json:"plan_id"`
+		Hash                string `json:"hash"`
+		Confirmed           bool   `json:"confirmed"`
+		ExchangeID          string `json:"exchange_id"`
+		ReplaceApprovalID   string `json:"replace_approval_id"`
+		ReplaceApprovalHash string `json:"replace_approval_hash"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		writeErr(c, http.StatusBadRequest, err)
+		return
+	}
+	userID := currentUserID(c)
+	st := s.userPlanningState(userID)
+	planningStateMu.RLock()
+	rec, ok := st.Records[body.PlanID]
+	planningStateMu.RUnlock()
+	if !ok {
+		writeErr(c, http.StatusNotFound, errors.New("plan draft not found; compile again"))
+		return
+	}
+	exchangeID := strings.TrimSpace(body.ExchangeID)
+	if exchangeID == "" {
+		exchangeID = strings.TrimSpace(rec.ExchangeID)
+	}
+	if exchangeID != "" {
+		if err := s.assertNoRunningAutopilot(userID, exchangeID); err != nil {
+			writeErr(c, http.StatusConflict, err)
+			return
+		}
+	}
+	eng, err := s.planningLiveEngine()
+	if err != nil {
+		writeErr(c, http.StatusServiceUnavailable, err)
+		return
+	}
+	view, err := eng.Approve(c.Request.Context(), live.ApproveInput{
+		UserID:              userID,
+		ExchangeID:          exchangeID,
+		Plan:                rec.Plan,
+		Hash:                body.Hash,
+		Confirmed:           body.Confirmed,
+		ReplaceApprovalID:   body.ReplaceApprovalID,
+		ReplaceApprovalHash: body.ReplaceApprovalHash,
+	})
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, live.ErrUnresolvedPlan) || errors.Is(err, live.ErrAccountLease) {
+			status = http.StatusConflict
+		}
+		writeErr(c, status, err)
+		return
+	}
+	planningStateMu.Lock()
+	rec.State = "approved"
+	rec.ExchangeID = exchangeID
+	st.Records[body.PlanID] = rec
+	planningStateMu.Unlock()
+	writeJSON(c, http.StatusOK, liveRunJSON(view))
+}
+
+func (s *Service) consolePlanningExecute(c *gin.Context) {
+	var body struct {
+		ID   string `json:"id"`
+		Hash string `json:"hash"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		writeErr(c, http.StatusBadRequest, err)
+		return
+	}
+	userID := currentUserID(c)
+	eng, err := s.planningLiveEngine()
+	if err != nil {
+		writeErr(c, http.StatusServiceUnavailable, err)
+		return
+	}
+	if views, lerr := eng.ListViews(userID); lerr == nil {
+		for _, v := range views {
+			if v.ID == body.ID && v.ExchangeID != "" {
+				if err := s.assertNoRunningAutopilot(userID, v.ExchangeID); err != nil {
+					writeErr(c, http.StatusConflict, err)
+					return
+				}
+				break
+			}
+		}
+	}
+	view, err := eng.Execute(c.Request.Context(), live.ExecuteInput{
+		UserID:       userID,
+		RunID:        body.ID,
+		ApprovalHash: body.Hash,
+	})
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, live.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		// Still return body when partial progress was persisted.
+		if view.ID != "" {
+			writeJSON(c, status, gin.H{"error": err.Error(), "run": liveRunJSON(view)})
+			return
+		}
+		writeErr(c, status, err)
+		return
+	}
+	writeJSON(c, http.StatusOK, liveRunJSON(view))
+}
+
+func (s *Service) consolePlanningCheckStatus(c *gin.Context) {
+	var body struct {
+		ID string `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		writeErr(c, http.StatusBadRequest, err)
+		return
+	}
+	eng, err := s.planningLiveEngine()
+	if err != nil {
+		writeErr(c, http.StatusServiceUnavailable, err)
+		return
+	}
+	view, err := eng.CheckStatus(c.Request.Context(), currentUserID(c), body.ID)
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, live.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		if view.ID != "" {
+			writeJSON(c, status, gin.H{"error": err.Error(), "run": liveRunJSON(view)})
+			return
+		}
+		writeErr(c, status, err)
+		return
+	}
+	writeJSON(c, http.StatusOK, liveRunJSON(view))
+}
+
+func (s *Service) consolePlanningStop(c *gin.Context) {
+	var body struct {
+		ID   string `json:"id"`
+		Hash string `json:"hash"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		writeErr(c, http.StatusBadRequest, err)
+		return
+	}
+	eng, err := s.planningLiveEngine()
+	if err != nil {
+		writeErr(c, http.StatusServiceUnavailable, err)
+		return
+	}
+	view, err := eng.Stop(c.Request.Context(), currentUserID(c), body.ID, body.Hash)
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, live.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		if view.ID != "" {
+			writeJSON(c, status, gin.H{"error": err.Error(), "run": liveRunJSON(view)})
+			return
+		}
+		writeErr(c, status, err)
+		return
+	}
+	writeJSON(c, http.StatusOK, liveRunJSON(view))
+}
+
+func (s *Service) consolePlanningReconcile(c *gin.Context) {
+	var body struct {
+		ID   string `json:"id"`
+		Hash string `json:"hash"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		writeErr(c, http.StatusBadRequest, err)
+		return
+	}
+	eng, err := s.planningLiveEngine()
+	if err != nil {
+		writeErr(c, http.StatusServiceUnavailable, err)
+		return
+	}
+	view, err := eng.Reconcile(c.Request.Context(), currentUserID(c), body.ID, body.Hash)
+	if err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, live.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		if view.ID != "" {
+			writeJSON(c, status, gin.H{"error": err.Error(), "run": liveRunJSON(view)})
+			return
+		}
+		writeErr(c, status, err)
+		return
+	}
+	writeJSON(c, http.StatusOK, liveRunJSON(view))
+}
+
+var (
+	planningCloseMu       sync.Mutex
+	planningCloseRequests = map[string]gin.H{}
+)
+
+func writePlanningCloseNotSubmitted(c *gin.Context, err error) {
+	writeJSON(c, http.StatusBadRequest, gin.H{
+		"error":       err.Error(),
 		"close_state": "not_submitted",
 	})
 }
 
-func (s *Service) consolePlanningChat(c *gin.Context) {
-	writeErr(c, http.StatusNotImplemented, errors.New(
-		"Planning chat is not available in this build. Use Custom market / limit / ladder / TWAP to compile a plan, or Chat for market Q&A.",
-	))
+func (s *Service) consolePlanningClosePosition(c *gin.Context) {
+	var body struct {
+		ExchangeID string `json:"exchange_id"`
+		RequestID  string `json:"request_id"`
+		Symbol     string `json:"symbol"`
+		Side       string `json:"side"`
+		Quantity   string `json:"quantity"`
+		EntryPrice string `json:"entry_price"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		writePlanningCloseNotSubmitted(c, err)
+		return
+	}
+	userID := currentUserID(c)
+	exchangeID := strings.TrimSpace(body.ExchangeID)
+	requestID := strings.TrimSpace(body.RequestID)
+	symbol := strings.TrimSpace(body.Symbol)
+	side := strings.ToLower(strings.TrimSpace(body.Side))
+	if exchangeID == "" || requestID == "" || symbol == "" {
+		writePlanningCloseNotSubmitted(c, errors.New("exchange_id, request_id and symbol are required"))
+		return
+	}
+	if side != "long" && side != "short" {
+		writePlanningCloseNotSubmitted(c, errors.New("side must be long or short"))
+		return
+	}
+	qty, err := strconv.ParseFloat(strings.TrimSpace(body.Quantity), 64)
+	if err != nil || qty <= 0 || math.IsNaN(qty) || math.IsInf(qty, 0) {
+		writePlanningCloseNotSubmitted(c, errors.New("invalid close quantity"))
+		return
+	}
+	entry, err := strconv.ParseFloat(strings.TrimSpace(body.EntryPrice), 64)
+	if err != nil || entry <= 0 || math.IsNaN(entry) || math.IsInf(entry, 0) {
+		writePlanningCloseNotSubmitted(c, errors.New("invalid entry price"))
+		return
+	}
+
+	idemKey := userID + "|" + requestID
+	planningCloseMu.Lock()
+	if cached, ok := planningCloseRequests[idemKey]; ok {
+		planningCloseMu.Unlock()
+		writeJSON(c, http.StatusOK, cached)
+		return
+	}
+	planningCloseMu.Unlock()
+
+	st := s.eng.Store()
+	if st == nil {
+		writePlanningCloseNotSubmitted(c, errStoreUnavailable)
+		return
+	}
+	ex, err := st.Exchange().GetByID(userID, exchangeID)
+	if err != nil || ex == nil {
+		writePlanningCloseNotSubmitted(c, errors.New("exchange account not found"))
+		return
+	}
+	if err := s.assertNoRunningAutopilot(userID, exchangeID); err != nil {
+		writePlanningCloseNotSubmitted(c, err)
+		return
+	}
+
+	trader, err := buildCredentialExchangeTrader(exchangeCredentialFromStore(userID, ex))
+	if err != nil {
+		writePlanningCloseNotSubmitted(c, err)
+		return
+	}
+	positions, err := trader.GetPositions()
+	if err != nil {
+		writePlanningCloseNotSubmitted(c, fmt.Errorf("could not read positions before close: %w", err))
+		return
+	}
+	var foundQty, foundEntry float64
+	found := false
+	for _, pos := range positions {
+		posSymbol, _ := pos["symbol"].(string)
+		posSide, _ := pos["side"].(string)
+		if !live.SamePlanningSymbol(posSymbol, symbol) {
+			continue
+		}
+		if strings.ToLower(posSide) != side {
+			continue
+		}
+		foundQty = absFloat(positionMapFloat(pos, "positionAmt", "quantity", "size"))
+		foundEntry = positionMapFloat(pos, "entryPrice", "entry_price")
+		found = true
+		break
+	}
+	if !found || foundQty <= 0 {
+		writePlanningCloseNotSubmitted(c, errors.New("Position is no longer open; no close was sent."))
+		return
+	}
+	if !live.MatchCloseQuantity(qty, foundQty) || !live.MatchCloseEntry(entry, foundEntry) {
+		writePlanningCloseNotSubmitted(c, errors.New("Position changed. Refresh and review its size before closing."))
+		return
+	}
+
+	var result map[string]any
+	switch side {
+	case "long":
+		result, err = trader.CloseLong(symbol, foundQty)
+	default:
+		result, err = trader.CloseShort(symbol, foundQty)
+	}
+	if err != nil {
+		// May have reached the venue; do not claim not_submitted.
+		writeJSON(c, http.StatusBadGateway, gin.H{
+			"error": "Close result is unconfirmed. Check the exchange before retrying.",
+		})
+		return
+	}
+
+	if eng, engErr := s.planningLiveEngine(); engErr == nil {
+		_ = eng.MarkSymbolClosed(userID, exchangeID, symbol)
+	}
+
+	msg := "Close request accepted. Verify the refreshed position below; no automatic repeat will be sent."
+	if result != nil {
+		if status, ok := result["status"]; ok {
+			msg = fmt.Sprintf("Close accepted (%v). Verify the refreshed position below; no automatic repeat will be sent.", status)
+		}
+	}
+	out := gin.H{"message": msg}
+	planningCloseMu.Lock()
+	planningCloseRequests[idemKey] = out
+	// Bound memory: drop older entries opportunistically.
+	if len(planningCloseRequests) > 500 {
+		planningCloseRequests = map[string]gin.H{idemKey: out}
+	}
+	planningCloseMu.Unlock()
+	writeJSON(c, http.StatusOK, out)
+}
+
+func positionMapFloat(pos map[string]any, keys ...string) float64 {
+	for _, key := range keys {
+		raw, ok := pos[key]
+		if !ok || raw == nil {
+			continue
+		}
+		switch v := raw.(type) {
+		case float64:
+			return math.Abs(v)
+		case float32:
+			return math.Abs(float64(v))
+		case int:
+			return math.Abs(float64(v))
+		case int64:
+			return math.Abs(float64(v))
+		case string:
+			f, err := strconv.ParseFloat(v, 64)
+			if err == nil {
+				return math.Abs(f)
+			}
+		}
+	}
+	return 0
+}
+
+func absFloat(v float64) float64 {
+	if v < 0 {
+		return -v
+	}
+	return v
 }
 
 func (s *Service) consolePlanningEntryPlugins(c *gin.Context) {
-	writeJSON(c, http.StatusOK, []any{})
+	sessionID := strings.TrimSpace(c.Query("session_id"))
+	if c.Request.Method == http.MethodPost {
+		var body struct {
+			PluginID        string  `json:"plugin_id"`
+			Equity          float64 `json:"equity"`
+			RiskPct         float64 `json:"risk_pct"`
+			Entry           float64 `json:"entry"`
+			Stop            float64 `json:"stop"`
+			Leverage        float64 `json:"leverage"`
+			AvailableMargin float64 `json:"available_margin"`
+			MaxNotional     float64 `json:"max_notional"`
+			Session         string  `json:"session_id"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			writeErr(c, http.StatusBadRequest, err)
+			return
+		}
+		id := strings.TrimSpace(body.PluginID)
+		if id == "" {
+			id = "risk-size-v1"
+		}
+		result, err := runBuiltinEntryPlugin(id, entryPluginInput{
+			Equity:          body.Equity,
+			RiskPct:         body.RiskPct,
+			Entry:           body.Entry,
+			Stop:            body.Stop,
+			Leverage:        body.Leverage,
+			AvailableMargin: body.AvailableMargin,
+			MaxNotional:     body.MaxNotional,
+		})
+		if err != nil {
+			writeErr(c, http.StatusBadRequest, err)
+			return
+		}
+		writeJSON(c, http.StatusOK, gin.H{
+			"plugin_id":  id,
+			"session_id": firstNonEmpty(strings.TrimSpace(body.Session), sessionID),
+			"result":     result,
+		})
+		return
+	}
+	writeJSON(c, http.StatusOK, builtinEntryPlugins(sessionID))
 }
 
-func (s *Service) consolePlanningDataPlugins(c *gin.Context) {
-	writeJSON(c, http.StatusOK, []any{})
+func builtinEntryPlugins(sessionID string) []gin.H {
+	return []gin.H{
+		{
+			"id":          "risk-size-v1",
+			"name":        "Risk-based position size",
+			"description": "Sizes quantity from equity risk percent, entry/stop distance, and leverage cap.",
+			"version":     "1",
+			"kind":        "builtin",
+			"session_id":  sessionID,
+			"inputs":      []string{"equity", "risk_pct", "entry", "stop", "leverage"},
+			"outputs":     []string{"quantity", "notional", "margin", "risk_usd", "stop_distance"},
+		},
+		{
+			"id":          "notional-cap-v1",
+			"name":        "Notional / margin cap",
+			"description": "Caps size by available margin × leverage (or max notional), independent of stop distance.",
+			"version":     "1",
+			"kind":        "builtin",
+			"session_id":  sessionID,
+			"inputs":      []string{"available_margin", "leverage", "entry", "max_notional"},
+			"outputs":     []string{"quantity", "notional", "margin"},
+		},
+	}
 }
 
-func (s *Service) consolePlanningPluginData(c *gin.Context) {
-	writeErr(c, http.StatusNotImplemented, errors.New("planning data plugins are not available in this build"))
+type entryPluginInput struct {
+	Equity          float64
+	RiskPct         float64
+	Entry           float64
+	Stop            float64
+	Leverage        float64
+	AvailableMargin float64
+	MaxNotional     float64
+}
+
+func runBuiltinEntryPlugin(id string, in entryPluginInput) (gin.H, error) {
+	switch id {
+	case "risk-size-v1":
+		if in.Equity <= 0 {
+			return nil, errors.New("equity must be positive")
+		}
+		riskPct := in.RiskPct
+		if riskPct <= 0 {
+			riskPct = 1
+		}
+		if in.Entry <= 0 || in.Stop <= 0 {
+			return nil, errors.New("entry and stop must be positive")
+		}
+		leverage := in.Leverage
+		if leverage <= 0 {
+			leverage = 1
+		}
+		stopDist := math.Abs(in.Entry - in.Stop)
+		if stopDist <= 0 {
+			return nil, errors.New("entry and stop must differ")
+		}
+		riskUSD := in.Equity * (riskPct / 100)
+		qty := riskUSD / stopDist
+		notional := qty * in.Entry
+		cappedBy := "risk"
+		maxNotional := in.Equity * leverage
+		if maxNotional > 0 && notional > maxNotional {
+			qty = maxNotional / in.Entry
+			notional = qty * in.Entry
+			riskUSD = qty * stopDist
+			cappedBy = "leverage"
+		}
+		margin := notional / leverage
+		return gin.H{
+			"quantity":      formatPlanningDecimal(qty),
+			"notional":      formatPlanningDecimal(notional),
+			"margin":        formatPlanningDecimal(margin),
+			"risk_usd":      formatPlanningDecimal(riskUSD),
+			"stop_distance": formatPlanningDecimal(stopDist),
+			"capped_by":     cappedBy,
+		}, nil
+	case "notional-cap-v1":
+		if in.Entry <= 0 {
+			return nil, errors.New("entry must be positive")
+		}
+		leverage := in.Leverage
+		if leverage <= 0 {
+			leverage = 1
+		}
+		available := in.AvailableMargin
+		if available <= 0 {
+			available = in.Equity
+		}
+		maxNotional := available * leverage
+		if in.MaxNotional > 0 && (maxNotional <= 0 || in.MaxNotional < maxNotional) {
+			maxNotional = in.MaxNotional
+		}
+		if maxNotional <= 0 {
+			return nil, errors.New("available margin × leverage must be positive")
+		}
+		qty := maxNotional / in.Entry
+		margin := maxNotional / leverage
+		return gin.H{
+			"quantity": formatPlanningDecimal(qty),
+			"notional": formatPlanningDecimal(maxNotional),
+			"margin":   formatPlanningDecimal(margin),
+		}, nil
+	default:
+		return nil, fmt.Errorf("unknown entry plugin %q", id)
+	}
 }
 
 func (s *Service) consolePlanningInstrument(c *gin.Context) {
@@ -667,19 +1355,25 @@ func (s *Service) consolePlanningInstrument(c *gin.Context) {
 	if err != nil || price <= 0 {
 		price = 100
 	}
-	tick, step, minQty, minNotional := inferInstrumentRules(price)
+	instCtx, instCancel := planningInstrumentHTTPTimeout(ctx)
+	defer instCancel()
+	rules := s.resolvePlanningInstrument(instCtx, venue, symbol, price)
 	base, quote := splitSymbolAssets(venue, symbol)
-	writeJSON(c, http.StatusOK, gin.H{
+	out := gin.H{
 		"venue":        venue,
 		"symbol":       symbol,
 		"kind":         "perpetual",
 		"base_asset":   base,
 		"quote_asset":  quote,
-		"tick":         tick,
-		"step":         step,
-		"min_qty":      formatPlanningDecimal(minQty),
-		"min_notional": formatPlanningDecimal(minNotional),
-	})
+		"tick":         rules.Tick,
+		"step":         rules.Step,
+		"min_qty":      formatPlanningDecimal(rules.MinQty),
+		"min_notional": formatPlanningDecimal(rules.MinNotional),
+	}
+	if rules.ContractValue != "" {
+		out["contract_value"] = rules.ContractValue
+	}
+	writeJSON(c, http.StatusOK, out)
 }
 
 func (s *Service) consolePlanningCandles(c *gin.Context) {

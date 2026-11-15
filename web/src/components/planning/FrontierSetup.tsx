@@ -249,12 +249,6 @@ export function FrontierSetup({
   }, [open, onOpen])
   async function createWallet() {
     if (working || pending.current) return
-    if (!wallet?.found) {
-      window.location.assign(
-        buildResourcesConfigurePath({ kind: 'model', type: 'claw402' })
-      )
-      return
-    }
     setWorking(true)
     setError('')
     try {
@@ -271,7 +265,7 @@ export function FrontierSetup({
     } catch {
       if (mounted.current)
         setError(
-          'AI setup could not be confirmed. Check the wallet status before retrying.'
+          'AI setup could not be confirmed. Check Resources → Claw402, or retry the wallet status check.'
         )
     } finally {
       if (mounted.current) setWorking(false)

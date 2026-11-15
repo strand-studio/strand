@@ -107,6 +107,12 @@ export default function HeaderBar({
       auth: true,
     },
     {
+      page: 'pricing',
+      path: ROUTES.pricing,
+      label: t('pricingNav', language),
+      auth: false,
+    },
+    {
       page: 'faq',
       path: ROUTES.help,
       label: t('helpNav', language),

@@ -22,14 +22,14 @@ import (
 type Engine struct {
 	mu sync.RWMutex
 
-	cfg      settings.Settings
-	store    *store.Store
-	traders  *manager.TraderManager
-	tgBinder *telegramnotify.Binder
-	bridges  []*projectBridge
-	started  time.Time
-	running  bool
-	rootCtx  context.Context
+	cfg        settings.Settings
+	store      *store.Store
+	traders    *manager.TraderManager
+	tgBinder   *telegramnotify.Binder
+	bridges    []*projectBridge
+	started    time.Time
+	running    bool
+	rootCtx    context.Context
 	rootCancel context.CancelFunc
 }
 
@@ -159,6 +159,7 @@ func (e *Engine) Start(ctx context.Context) error {
 	e.tgBinder = telegramnotify.NewBinder(st)
 	e.tgBinder.Start(e.rootCtx)
 	if e.traders != nil {
+		e.tgBinder.SetStatusProvider(e.traders)
 		alerter := fanout.New(st, e.tgBinder)
 		e.traders.SetNotifyAlert(func(text string) {
 			alerter.Notify(text)
@@ -220,17 +221,17 @@ func (e *Engine) Stop(ctx context.Context) error {
 
 // Status is a JSON-friendly runtime snapshot for CLI / API.
 type Status struct {
-	Running   bool              `json:"running"`
-	StartedAt string            `json:"started_at,omitempty"`
-	UptimeSec int64             `json:"uptime_sec,omitempty"`
-	DataDir   string            `json:"data_dir"`
-	Config    string            `json:"config,omitempty"`
-	API       StatusAPI         `json:"api"`
-	Database  StatusDatabase    `json:"database"`
-	Trading   StatusTrading     `json:"trading"`
-	Projects  []StatusProject   `json:"projects"`
-	Agents    []string          `json:"registered_agents"`
-	Platforms []string          `json:"registered_platforms"`
+	Running   bool            `json:"running"`
+	StartedAt string          `json:"started_at,omitempty"`
+	UptimeSec int64           `json:"uptime_sec,omitempty"`
+	DataDir   string          `json:"data_dir"`
+	Config    string          `json:"config,omitempty"`
+	API       StatusAPI       `json:"api"`
+	Database  StatusDatabase  `json:"database"`
+	Trading   StatusTrading   `json:"trading"`
+	Projects  []StatusProject `json:"projects"`
+	Agents    []string        `json:"registered_agents"`
+	Platforms []string        `json:"registered_platforms"`
 }
 
 type StatusAPI struct {

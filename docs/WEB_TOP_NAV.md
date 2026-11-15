@@ -41,6 +41,7 @@
 | **Strategy** / 策略 | `/strategy` | — | 是 | 硬风控、方向板规则、轻量回测后激活 |
 | **Leaderboard** / 排行榜 | `/leaderboard` | `/competition` | 否 | 公开浏览 opt-in 排名；参赛需登录后启动 Autopilot |
 | **More → Chat** / 对话 | `/chat` | — | 是 | 只读工具问行情；下单请走 Trade |
+| **More → Pricing** / 定价 | `/pricing` | — | 否 | Community / Cloud / Pro / Team 分档与能力对照 |
 | **More → Help** / 帮助 | `/help` | `/faq` | 否 | 钱包 / 启动 / 控制台 / 告警 / 自托管指南 |
 | **Settings** / 设置 | `/settings` | — | 是 | 账户菜单入口；AI / 交易所 / 备份 |
 

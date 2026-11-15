@@ -29,6 +29,7 @@ import type {
   StrategyConfig,
 } from '../types'
 import { launchAutopilot } from '../lib/launch/launchAutopilot'
+import { setupQueryForPreflight } from '../lib/launch/preflight'
 import type {
   MarketSymbol,
   VergexHeatmapBin,
@@ -1302,27 +1303,19 @@ export function StrategyStudioPage() {
 
       if (!outcome.ok) {
         notify.error(outcome.message)
+        if (outcome.kind === 'preflight') {
+          const q = setupQueryForPreflight(outcome.preflight)
+          if (q) {
+            navigate(`${ROUTES.traders}?${q}`)
+            return
+          }
+        }
         const setupTarget =
           outcome.kind === 'error' ? null : outcome.setupTarget
         if (setupTarget) {
-          const params = new URLSearchParams({ setup: setupTarget })
-          if (
-            setupTarget === 'exchange' &&
-            outcome.kind === 'preflight' &&
-            outcome.preflight
-          ) {
-            const exchangeId = outcome.preflight.checks.find(
-              (c) =>
-                c.status === 'failed' &&
-                c.exchange_id &&
-                (c.id === 'exchange_config' ||
-                  c.id === 'exchange_account' ||
-                  c.id === 'exchange_funds' ||
-                  c.id === 'exchange_trade_auth')
-            )?.exchange_id
-            if (exchangeId) params.set('exchange_id', exchangeId)
-          }
-          navigate(`${ROUTES.traders}?${params.toString()}`)
+          navigate(
+            `${ROUTES.traders}?${new URLSearchParams({ setup: setupTarget })}`
+          )
         }
         return
       }

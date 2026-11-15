@@ -18,6 +18,11 @@ import (
 
 const apiBase = "https://api.telegram.org"
 
+// StatusProvider supplies a live Autopilot ops snapshot for /status.
+type StatusProvider interface {
+	TelegramStatusText() string
+}
+
 // Binder long-polls a console bot token, binds on /start, and can push alerts.
 type Binder struct {
 	mu     sync.Mutex
@@ -27,6 +32,18 @@ type Binder struct {
 	cancel context.CancelFunc
 	token  string
 	offset int64
+
+	statusProvider StatusProvider
+}
+
+// SetStatusProvider wires live TraderManager status into /status replies.
+func (b *Binder) SetStatusProvider(p StatusProvider) {
+	if b == nil {
+		return
+	}
+	b.mu.Lock()
+	b.statusProvider = p
+	b.mu.Unlock()
 }
 
 func NewBinder(st *store.Store) *Binder {
@@ -147,7 +164,7 @@ func (b *Binder) pollLoop(ctx context.Context, token string) {
 type tgUpdate struct {
 	UpdateID int64 `json:"update_id"`
 	Message  *struct {
-		MessageID int64 `json:"message_id"`
+		MessageID int64  `json:"message_id"`
 		Text      string `json:"text"`
 		Chat      struct {
 			ID int64 `json:"id"`
@@ -250,7 +267,7 @@ func (b *Binder) handleUpdate(token string, upd tgUpdate) {
 		_ = b.sendMessage(token, chatID,
 			"Strand console bot\n"+
 				"/start — bind this chat for alerts\n"+
-				"/status — running Autopilots\n"+
+				"/status — running Autopilots (pause / Safe Mode / risk)\n"+
 				"/unbind — stop alerts (keep bot token)\n"+
 				"/help — this message")
 
@@ -278,6 +295,14 @@ func (b *Binder) handleUpdate(token string, upd tgUpdate) {
 }
 
 func (b *Binder) statusText() string {
+	b.mu.Lock()
+	provider := b.statusProvider
+	b.mu.Unlock()
+	if provider != nil {
+		if live := strings.TrimSpace(provider.TelegramStatusText()); live != "" {
+			return live
+		}
+	}
 	if b.store == nil {
 		return "Store unavailable"
 	}
@@ -302,7 +327,7 @@ func (b *Binder) statusText() string {
 		}
 	}
 	if running == 0 {
-		return "Strand is online.\nNo Autopilots running.\nYou'll get start/stop alerts here."
+		return "Strand is online.\nNo Autopilots running.\nHard-gate / Safe Mode alerts will appear here when trading pauses."
 	}
 	out := fmt.Sprintf("Strand is online.\n%d Autopilot(s) running:\n%s", running, strings.Join(lines, "\n"))
 	if running > len(lines) {

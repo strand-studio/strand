@@ -1,4 +1,4 @@
-import { apiKeyVenues, venueName } from '../../lib/frontierAccounts'
+import { venueName } from '../../lib/frontierAccounts'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../../lib/api'
 import { getAuthHeaders, handleJSONResponse } from '../../lib/api/helpers'
@@ -68,6 +68,7 @@ export function FrontierAccount({
   onBusy,
   onRefresh,
   onCheck,
+  onReconcile,
   onObserve,
 }: {
   account?: Exchange
@@ -81,6 +82,7 @@ export function FrontierAccount({
   onBusy: (value: boolean) => void
   onRefresh: () => Promise<void>
   onCheck?: (run: LiveRun) => Promise<void>
+  onReconcile?: (run: LiveRun) => Promise<void>
   onObserve?: (snapshot: AccountObservation | null) => void
 }) {
   const [snapshot, setSnapshot] = useState<{
@@ -250,15 +252,8 @@ export function FrontierAccount({
   }, [accountID, symbol, snapshot, orders, error, orderError, onObserve])
 
   async function closePosition() {
-    if (
-      !confirm ||
-      !accountID ||
-      (!apiKeyVenues.includes(venue) && !currentBinding) ||
-      busy
-    )
-      return
+    if (!confirm || !accountID || busy) return
     const position = confirm,
-      traderID = currentBinding?.id,
       attempt = key(position)
     if (attemptLatch.current.has(attempt)) return
     attemptLatch.current.add(attempt)
@@ -270,15 +265,6 @@ export function FrontierAccount({
     let closeMessage = ''
     try {
       const traders = await api.getTraders(true)
-      if (
-        !apiKeyVenues.includes(venue) &&
-        !traders.some(
-          (t) => t.trader_id === traderID && t.exchange_id === accountID
-        )
-      )
-        throw new Error(
-          'The Strand account binding changed. Refresh before closing.'
-        )
       if (traders.some((t) => t.exchange_id === accountID && t.is_running))
         throw new Error(
           'Stop Autopilot for this account in Portfolio before manually closing.'
@@ -303,30 +289,22 @@ export function FrontierAccount({
             throw new Error(
               'Position changed. Refresh and review its size before closing.'
             )
-          if (apiKeyVenues.includes(venue)) {
-            const quantity = positionDecimal(fresh.quantity)
-            const entryPrice = positionDecimal(fresh.entry)
-            closeSent = true
-            const result = await planningAPI<{ message: string }>(
-              'close-position',
-              {
-                exchange_id: accountID,
-                request_id: crypto.randomUUID(),
-                symbol: position.symbol,
-                side: position.side,
-                quantity,
-                entry_price: entryPrice,
-              }
-            )
-            closeMessage = result.message
-            return result
-          }
+          const quantity = positionDecimal(fresh.quantity)
+          const entryPrice = positionDecimal(fresh.entry)
           closeSent = true
-          return api.closePosition(
-            traderID!,
-            position.symbol,
-            position.side.toUpperCase()
+          const result = await planningAPI<{ message: string }>(
+            'close-position',
+            {
+              exchange_id: accountID,
+              request_id: crypto.randomUUID(),
+              symbol: position.symbol,
+              side: position.side,
+              quantity,
+              entry_price: entryPrice,
+            }
           )
+          closeMessage = result.message
+          return result
         },
       })
       setNotice(
@@ -510,7 +488,7 @@ export function FrontierAccount({
                         {venue === 'hyperliquid' ? 'USDC' : 'USDT'}
                       </td>
                       <td>
-                        {!currentBinding && !apiKeyVenues.includes(venue) ? (
+                        {!accountID ? (
                           <a
                             href={exchangeURL(venue)}
                             target="_blank"
@@ -705,11 +683,17 @@ export function FrontierAccount({
             </div>
             <div>
               {onCheck &&
-                ['needs_attention', 'position_open', 'stopping'].includes(
+                ['needs_attention', 'position_open', 'stopping', 'running', 'starting'].includes(
                   run.state
                 ) && (
                   <button disabled={busy} onClick={() => void onCheck(run)}>
                     Check trade status
+                  </button>
+                )}
+              {onReconcile &&
+                (run.state === 'needs_attention' || unconfirmed) && (
+                  <button disabled={busy} onClick={() => void onReconcile(run)}>
+                    Reconcile with exchange
                   </button>
                 )}
               <button disabled={busy} onClick={() => onView(run)}>

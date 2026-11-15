@@ -2,7 +2,10 @@ import {
   ArrowRight,
   ArrowUpRight,
   BarChart3,
+  Bell,
   Layers3,
+  MessageSquare,
+  ShieldCheck,
   SlidersHorizontal,
   Terminal,
   Trophy,
@@ -29,6 +32,9 @@ const VENUES = [
   'OKX',
   'Gate',
   'Bitget',
+  'KuCoin',
+  'Lighter',
+  'Aster',
 ] as const
 
 export default function FlowLanding() {
@@ -45,9 +51,9 @@ export default function FlowLanding() {
       ),
       body: copy(
         language,
-        'Markets 汇总 Hyperliquid 与主流 CEX 永续行情；点进标的详情看 K 线、换算与同所热门——无需登录即可浏览。',
-        'Markets aggregates Hyperliquid and major CEX perps. Open a symbol for candles, converter and related markets — browse without signing in.',
-        'Markets merangkum Hyperliquid dan CEX utama. Buka simbol untuk candle, konverter, dan pasar terkait — tanpa login.'
+        'Markets 汇总 Hyperliquid 与主流 CEX 永续行情；点进标的看 K 线与同所热门——无需登录即可浏览。',
+        'Markets aggregates Hyperliquid and major CEX perps. Open a symbol for candles and related markets — browse without signing in.',
+        'Markets merangkum Hyperliquid dan CEX utama. Buka simbol untuk candle dan pasar terkait — tanpa login.'
       ),
       label: t('marketsNav', language),
       to: ROUTES.markets,
@@ -62,9 +68,9 @@ export default function FlowLanding() {
       ),
       body: copy(
         language,
-        'Trade 对比市价 / 限价 / Ladder / TWAP，看清入场、仓位与退出，再人工确认——适合你想自己拍板的时候。',
-        'Trade compares market / limit / Ladder / TWAP so you see entry, size and exits before you confirm — when you want the final say.',
-        'Trade membandingkan market / limit / Ladder / TWAP agar entry, size, dan exit jelas sebelum Anda konfirmasi.'
+        'Trade 对比市价 / 限价 / Ladder / TWAP，看清入场与退出再确认；Markets / Portfolio 可 Chart-to-order。',
+        'Trade compares market / limit / Ladder / TWAP before you confirm. Chart-to-order from Markets or Portfolio when you want the final say.',
+        'Trade membandingkan market / limit / Ladder / TWAP sebelum konfirmasi. Chart-to-order dari Markets atau Portfolio.'
       ),
       label: t('tradeNav', language),
       to: ROUTES.planning,
@@ -79,29 +85,63 @@ export default function FlowLanding() {
       ),
       body: copy(
         language,
-        '绑定 Claw402 / BYOK 与交易所，在 Strategy 设硬风控，再启动 Autopilot。方向板驱动，硬闸在模型之外。',
-        'Bind Claw402 / BYOK and your venue, set hard gates on Strategy, then launch Autopilot. The board drives; hard gates sit outside the model.',
-        'Hubungkan Claw402 / BYOK dan bursa, atur hard gate di Strategy, lalu jalankan Autopilot. Papan mengarahkan; hard gate di luar model.'
+        '绑定 Claw402 / BYOK 与交易所，Preflight 绿灯后再启动。方向板驱动，日亏 / 回撤硬闸在模型之外。',
+        'Bind Claw402 / BYOK and your venue, pass Preflight, then launch. The board drives; daily-loss and drawdown gates sit outside the model.',
+        'Hubungkan Claw402 / BYOK dan bursa, lulus Preflight, lalu jalankan. Papan mengarahkan; hard gate di luar model.'
       ),
       label: t('autopilotNav', language),
       to: ROUTES.autopilot,
     },
     {
-      icon: Wallet,
+      icon: Bell,
       title: copy(
         language,
-        '仓位与规则一处看清',
-        'Positions and rules in view',
-        'Posisi dan aturan terlihat'
+        '状态跟到你的 IM',
+        'Alerts meet you in chat',
+        'Peringatan di chat Anda'
       ),
       body: copy(
         language,
-        'Portfolio 看权益与决策；Strategy 管杠杆与日亏硬闸；Leaderboard 公开对比 opt-in 实例。AI 手续费钱包与交易保证金分开。',
-        'Portfolio tracks equity and decisions; Strategy owns leverage and daily-loss gates; Leaderboard compares opt-in runners. AI fee wallet stays apart from trading margin.',
-        'Portfolio melacak ekuitas dan keputusan; Strategy mengatur leverage dan batas rugi harian; Leaderboard membandingkan runner opt-in.'
+        'Telegram / Discord / Slack / 飞书 / 钉钉 / 微信等可收硬闸与崩溃告警；可选绑对话 Agent。交易仍在本机执行——不是聊天下单。',
+        'Telegram, Discord, Slack, Feishu, DingTalk, WeChat and more for hard-gate and crash alerts; optional conversation agents. Execution stays on your machine — not chat-to-trade.',
+        'Telegram, Discord, Slack, Feishu, DingTalk, WeChat untuk peringatan hard gate; agen percakapan opsional. Eksekusi tetap di mesin Anda.'
+      ),
+      label: t('pricingNav', language),
+      to: ROUTES.pricing,
+    },
+    {
+      icon: Wallet,
+      title: copy(
+        language,
+        '仓位、费用与规则一处看清',
+        'Positions, fees, and rules',
+        'Posisi, biaya, dan aturan'
+      ),
+      body: copy(
+        language,
+        'Portfolio 看权益与决策；Strategy 管杠杆与日亏硬闸；AI 手续费钱包（Base USDC）与交易保证金分开。',
+        'Portfolio tracks equity and decisions; Strategy owns leverage and daily-loss gates. AI fee wallet (Base USDC) stays apart from trading margin.',
+        'Portfolio melacak ekuitas dan keputusan; Strategy mengatur leverage dan batas rugi. Dompet biaya AI terpisah dari margin.'
       ),
       label: t('portfolioNav', language),
       to: ROUTES.portfolio,
+    },
+    {
+      icon: ShieldCheck,
+      title: copy(
+        language,
+        '启动前先过 Preflight',
+        'Preflight before you go live',
+        'Preflight sebelum live'
+      ),
+      body: copy(
+        language,
+        'AI 费钱包、交易所余额、交易授权未就绪则拒绝启动；Safe Mode 可只平仓不开新仓。',
+        'Start is refused until the AI fee wallet, exchange balance, and trade auth are ready. Safe Mode can close-only when gates trip.',
+        'Start ditolak sampai dompet biaya AI, saldo, dan otorisasi siap. Safe Mode bisa close-only saat hard gate aktif.'
+      ),
+      label: t('helpNav', language),
+      to: ROUTES.help,
     },
   ]
 
@@ -118,12 +158,7 @@ export default function FlowLanding() {
     },
     {
       n: '02',
-      title: copy(
-        language,
-        '选路径',
-        'Choose a path',
-        'Pilih jalur'
-      ),
+      title: copy(language, '选路径', 'Choose a path', 'Pilih jalur'),
       body: copy(
         language,
         'Trade 人工确认，或 Autopilot 跟方向板自动执行。',
@@ -133,17 +168,12 @@ export default function FlowLanding() {
     },
     {
       n: '03',
-      title: copy(
-        language,
-        '守住风控',
-        'Keep the gates',
-        'Jaga hard gate'
-      ),
+      title: copy(language, '守住风控与触达', 'Keep gates & reach', 'Jaga gate & jangkauan'),
       body: copy(
         language,
-        '在 Strategy 设限，在 Portfolio 盯仓，密钥始终在本机。',
-        'Set limits on Strategy, watch Portfolio — keys stay on your machine.',
-        'Atur batas di Strategy, pantau Portfolio — kunci tetap di mesin Anda.'
+        '设硬闸、盯 Portfolio，把告警绑到日常 IM；密钥始终在本机。',
+        'Set hard gates, watch Portfolio, bind alerts to the apps you already use — keys stay on your machine.',
+        'Atur hard gate, pantau Portfolio, ikat peringatan ke IM Anda — kunci tetap lokal.'
       ),
     },
   ]
@@ -159,77 +189,67 @@ export default function FlowLanding() {
             <span />
             {copy(
               language,
-              '开源 · 自托管 · 不托管资金',
+              '开源 · 自托管 · 非托管资金',
               'Open source · Self-hosted · Non-custodial',
               'Open source · Self-hosted · Non-kustodi'
             )}
           </span>
           <h1>
-            {copy(language, '读懂市场。', 'Read the market.', 'Baca pasar.')}
+            {copy(
+              language,
+              '会交易的智能，',
+              'Intelligence that can trade.',
+              'Kecerdasan yang bisa trading.'
+            )}
             <br />
             <em>
               {copy(
                 language,
-                '再决定怎么交易。',
-                'Then decide how to trade.',
-                'Lalu putuskan cara trade.'
+                '控制权在你手里。',
+                'Control that stays yours.',
+                'Kendali tetap milik Anda.'
               )}
             </em>
           </h1>
           <p>
             {copy(
               language,
-              'Strand 是跑在你机器上的 AI 交易终端：Markets 看行情，Trade 审计划，Autopilot 跟 Claw402 方向板执行——硬风控在模型之外，密钥不离开本机。',
-              'Strand is the AI trading terminal on your machine: Markets for the board, Trade to review plans, Autopilot to follow the Claw402 direction board — hard risk gates outside the model, keys never leave your server.',
-              'Strand adalah terminal trading AI di mesin Anda: Markets untuk papan, Trade untuk meninjau rencana, Autopilot mengikuti papan Claw402 — hard gate di luar model, kunci tidak meninggalkan server Anda.'
+              'Strand 是跑在你机器上的 AI 交易终端：Autopilot 跟随 Claw402 方向板，Trade 让你先规划再下单；硬风控在模型之外，告警可跟到 Telegram / 飞书 / 钉钉等——密钥与资金不离开本机。',
+              'Strand is the AI trading terminal on your machine: Autopilot follows the Claw402 board, Trade lets you plan before you send. Hard gates sit outside the model; alerts can meet you in Telegram, Feishu, DingTalk and more — keys and funds never leave your server.',
+              'Strand adalah terminal trading AI di mesin Anda: Autopilot mengikuti papan Claw402, Trade meninjau rencana sebelum kirim. Hard gate di luar model; peringatan bisa ke Telegram/Feishu — kunci tidak meninggalkan server Anda.'
             )}
           </p>
           <div className="flow-hero-actions">
             <Link to={ROUTES.markets} className="flow-primary">
-              {copy(
-                language,
-                '打开 Markets',
-                'Open Markets',
-                'Buka Markets'
-              )}{' '}
+              {copy(language, '打开 Markets', 'Open Markets', 'Buka Markets')}{' '}
               <ArrowRight size={18} />
             </Link>
-            <Link to={ROUTES.autopilot}>
-              {copy(
-                language,
-                '设置 Autopilot',
-                'Set up Autopilot',
-                'Siapkan Autopilot'
-              )}{' '}
+            <Link to={ROUTES.pricing}>
+              {copy(language, '查看定价', 'See pricing', 'Lihat harga')}{' '}
               <ArrowUpRight size={16} />
             </Link>
           </div>
           <div className="flow-hero-trust">
             <span>
               <Check size={14} />{' '}
+              {copy(language, '本机运行', 'Runs on your machine', 'Berjalan di mesin Anda')}
+            </span>
+            <span>
+              <Check size={14} />{' '}
               {copy(
                 language,
-                '本机运行',
-                'Runs on your machine',
-                'Berjalan di mesin Anda'
+                'AI 费与保证金分离',
+                'AI fees ≠ trading margin',
+                'Biaya AI ≠ margin trading'
               )}
             </span>
             <span>
               <Check size={14} />{' '}
               {copy(
                 language,
-                '你的交易所账户',
-                'Your exchange accounts',
-                'Akun bursa Anda'
-              )}
-            </span>
-            <span>
-              <Check size={14} />{' '}
-              {copy(
-                language,
-                '行情可匿名浏览',
-                'Markets without login',
-                'Markets tanpa login'
+                '告警跟到 IM',
+                'Alerts in your IM',
+                'Peringatan di IM'
               )}
             </span>
           </div>
@@ -239,9 +259,9 @@ export default function FlowLanding() {
           className="flow-product-preview"
           aria-label={copy(
             language,
-            'Markets 工作区示意',
-            'Markets workspace preview',
-            'Pratinjau ruang kerja Markets'
+            '控制台工作区示意',
+            'Console workspace preview',
+            'Pratinjau ruang kerja konsol'
           )}
         >
           <div className="flow-preview-header">
@@ -256,17 +276,17 @@ export default function FlowLanding() {
               <span>
                 {copy(
                   language,
-                  '多所永续 · 实时板',
-                  'Multi-venue perps · live board',
-                  'Perp multi-venue · papan live'
+                  '多所永续 · 方向板 · 硬风控',
+                  'Multi-venue perps · board · hard gates',
+                  'Perp multi-venue · papan · hard gate'
                 )}
               </span>
               <b>
                 {copy(
                   language,
-                  '从行情到计划，一条路径。',
-                  'From board to plan, one path.',
-                  'Dari papan ke rencana, satu jalur.'
+                  '从行情到执行，状态跟到 IM。',
+                  'From board to execution — status follows you.',
+                  'Dari papan ke eksekusi — status mengikuti Anda.'
                 )}
               </b>
             </div>
@@ -332,12 +352,12 @@ export default function FlowLanding() {
                   tip: copy(language, '方向板驱动', 'Board-driven', 'Ikuti papan'),
                 },
                 {
-                  title: t('leaderboardNav', language),
-                  tip: copy(language, '公开排名', 'Public ranks', 'Peringkat publik'),
+                  title: copy(language, '消息通道', 'Messaging', 'Pesan'),
+                  tip: copy(language, '告警跟到 IM', 'IM alerts', 'Peringatan IM'),
                 },
                 {
-                  title: t('helpNav', language),
-                  tip: copy(language, '自托管指南', 'Self-host guide', 'Panduan host'),
+                  title: t('leaderboardNav', language),
+                  tip: copy(language, '公开排名', 'Public ranks', 'Peringkat'),
                 },
               ].map((item, i) => (
                 <div key={item.title} data-selected={i === 0}>
@@ -350,20 +370,10 @@ export default function FlowLanding() {
             <div className="flow-preview-bottom">
               <span>
                 <Check size={14} />{' '}
-                {copy(
-                  language,
-                  '密钥留在本机',
-                  'Keys stay local',
-                  'Kunci tetap lokal'
-                )}
+                {copy(language, '密钥留在本机', 'Keys stay local', 'Kunci tetap lokal')}
               </span>
-              <Link to={ROUTES.markets}>
-                {copy(
-                  language,
-                  '进入 Markets',
-                  'Enter Markets',
-                  'Masuk Markets'
-                )}{' '}
+              <Link to={ROUTES.autopilot}>
+                {copy(language, '设置 Autopilot', 'Set up Autopilot', 'Siapkan Autopilot')}{' '}
                 <ArrowUpRight size={14} />
               </Link>
             </div>
@@ -398,15 +408,13 @@ export default function FlowLanding() {
           <span className="flow-eyebrow">
             {copy(language, '怎么用', 'How it works', 'Cara kerja')}
           </span>
-          <h2>
-            {copy(language, '三步上手', 'Three steps', 'Tiga langkah')}
-          </h2>
+          <h2>{copy(language, '三步上手', 'Three steps', 'Tiga langkah')}</h2>
           <p>
             {copy(
               language,
-              '从公开行情开始，再选人工交易或自动驾驶。',
-              'Start from the public board, then pick human Trade or Autopilot.',
-              'Mulai dari papan publik, lalu pilih Trade manual atau Autopilot.'
+              '从公开行情开始，再选人工交易或自动驾驶，并把告警绑到 IM。',
+              'Start from the public board, pick Trade or Autopilot, then bind alerts to your IM.',
+              'Mulai dari papan publik, pilih Trade atau Autopilot, lalu ikat peringatan ke IM.'
             )}
           </p>
         </div>
@@ -422,34 +430,19 @@ export default function FlowLanding() {
       <section className="flow-features">
         <div className="flow-section-heading">
           <span className="flow-eyebrow">
-            {copy(
-              language,
-              '一个控制台',
-              'One console',
-              'Satu konsol'
-            )}
+            {copy(language, '一个控制台', 'One console', 'Satu konsol')}
           </span>
           <h2>
-            {copy(
-              language,
-              '少切换。',
-              'Less switching.',
-              'Lebih sedikit berpindah.'
-            )}
+            {copy(language, '少切换。', 'Less switching.', 'Lebih sedikit berpindah.')}
             <br />
-            {copy(
-              language,
-              '多一点清楚。',
-              'More clarity.',
-              'Lebih jelas.'
-            )}
+            {copy(language, '多一点清楚。', 'More clarity.', 'Lebih jelas.')}
           </h2>
           <p>
             {copy(
               language,
-              '行情、计划、自动驾驶与风控在同一套导航里——按意图选入口即可。',
-              'Markets, plans, Autopilot and risk live in one nav — pick the door that matches your intent.',
-              'Markets, rencana, Autopilot, dan risiko dalam satu navigasi — pilih pintu sesuai niat Anda.'
+              '行情、计划、自动驾驶、风控与消息触达在同一套导航里——按意图选入口即可。',
+              'Markets, plans, Autopilot, risk and messaging live in one nav — pick the door that matches your intent.',
+              'Markets, rencana, Autopilot, risiko, dan pesan dalam satu navigasi.'
             )}
           </p>
         </div>
@@ -467,6 +460,21 @@ export default function FlowLanding() {
       </section>
 
       <section className="flow-paths" aria-label="Quick paths">
+        <Link to={ROUTES.pricing} className="flow-path">
+          <Wallet size={18} />
+          <div>
+            <strong>{t('pricingNav', language)}</strong>
+            <span>
+              {copy(
+                language,
+                '开源免费 · Cloud / Pro / 团队分档',
+                'Free self-host · Cloud / Pro / Team tiers',
+                'Self-host gratis · Cloud / Pro / Tim'
+              )}
+            </span>
+          </div>
+          <ArrowUpRight size={16} />
+        </Link>
         <Link to={ROUTES.leaderboard} className="flow-path">
           <Trophy size={18} />
           <div>
@@ -477,6 +485,21 @@ export default function FlowLanding() {
                 '公开浏览 opt-in 排名',
                 'Browse opt-in rankings',
                 'Lihat peringkat opt-in'
+              )}
+            </span>
+          </div>
+          <ArrowUpRight size={16} />
+        </Link>
+        <Link to={ROUTES.chat} className="flow-path">
+          <MessageSquare size={18} />
+          <div>
+            <strong>{t('chatNav', language)}</strong>
+            <span>
+              {copy(
+                language,
+                '只读问行情（需登录，不下单）',
+                'Read-only market Q&A (sign-in, no orders)',
+                'Tanya pasar baca-saja (perlu masuk, tanpa order)'
               )}
             </span>
           </div>
@@ -497,21 +520,6 @@ export default function FlowLanding() {
           </div>
           <ArrowUpRight size={16} />
         </Link>
-        <Link to={ROUTES.chat} className="flow-path">
-          <BarChart3 size={18} />
-          <div>
-            <strong>{t('chatNav', language)}</strong>
-            <span>
-              {copy(
-                language,
-                '只读工具问行情（需登录）',
-                'Read-only market tools (sign-in)',
-                'Alat pasar baca-saja (perlu masuk)'
-              )}
-            </span>
-          </div>
-          <ArrowUpRight size={16} />
-        </Link>
       </section>
 
       <section className="flow-local">
@@ -526,39 +534,35 @@ export default function FlowLanding() {
             )}
           </span>
           <h2>
-            {copy(
-              language,
-              '你的工作区。',
-              'Your workspace.',
-              'Ruang kerja Anda.'
-            )}
+            {copy(language, '你的工作区。', 'Your workspace.', 'Ruang kerja Anda.')}
             <br />
-            {copy(
-              language,
-              '按你的规则。',
-              'On your terms.',
-              'Dengan aturan Anda.'
-            )}
+            {copy(language, '按你的规则。', 'On your terms.', 'Dengan aturan Anda.')}
           </h2>
           <p>
             {copy(
               language,
-              '在本机跑 Go API 与 Web 控制台，连接你的账户，再选 Trade 或 Autopilot——密钥不离开你的服务器。',
-              'Run the Go API and web console on your machine, connect your accounts, then choose Trade or Autopilot — keys never leave your server.',
-              'Jalankan Go API dan konsol web di mesin Anda, hubungkan akun, lalu pilih Trade atau Autopilot — kunci tidak meninggalkan server Anda.'
+              '在本机跑 Go API 与 Web 控制台，连接你的账户与消息通道，再选 Trade 或 Autopilot——密钥不离开你的服务器。不想自己运维？看 Pricing 的 Cloud / 团队档。',
+              'Run the Go API and web console on your machine, connect accounts and messaging, then choose Trade or Autopilot — keys never leave your server. Prefer not to operate it yourself? See Cloud and Team on Pricing.',
+              'Jalankan Go API dan konsol web di mesin Anda, hubungkan akun dan pesan, lalu pilih Trade atau Autopilot. Tidak ingin mengelola sendiri? Lihat Cloud dan Tim di Pricing.'
             )}
           </p>
         </div>
-        {OFFICIAL_LINKS.github ? (
-          <a
-            href={OFFICIAL_LINKS.github}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {copy(language, '查看源码', 'View source', 'Lihat sumber')}{' '}
+        <div className="flow-local-actions">
+          {OFFICIAL_LINKS.github ? (
+            <a
+              href={OFFICIAL_LINKS.github}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {copy(language, '查看源码', 'View source', 'Lihat sumber')}{' '}
+              <ArrowUpRight size={18} />
+            </a>
+          ) : null}
+          <Link to={ROUTES.pricing}>
+            {copy(language, '对比方案', 'Compare plans', 'Bandingkan paket')}{' '}
             <ArrowUpRight size={18} />
-          </a>
-        ) : null}
+          </Link>
+        </div>
       </section>
     </div>
   )

@@ -178,7 +178,14 @@ func (b *HyperliquidTrader) PrepareExecutionLeverage(ctx context.Context, symbol
 	return e
 }
 func (b *HyperliquidTrader) SubmitOrder(ctx context.Context, o execution.Order) (execution.Order, error) {
-	if o.Type != "" && (o.Type != "market" || o.Role != "entry" || o.PostOnly || o.ReduceOnly) {
+	// Empty / "limit" → resting GTC limit (or trigger protections). Market entry is IOC.
+	switch {
+	case o.Type == "" || o.Type == "limit":
+		if o.Role == "entry" && o.ReduceOnly {
+			return o, errors.New("unsupported execution order type")
+		}
+	case o.Type == "market" && o.Role == "entry" && !o.PostOnly && !o.ReduceOnly:
+	default:
 		return o, errors.New("unsupported execution order type")
 	}
 	if e := b.CheckTradingAuthorization(); e != nil {

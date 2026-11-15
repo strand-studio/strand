@@ -8,6 +8,7 @@ export type Page =
   | 'markets'
   | 'chat'
   | 'faq'
+  | 'pricing'
   | 'login'
   | 'register'
 
@@ -25,6 +26,7 @@ export const ROUTES = {
   leaderboard: '/leaderboard',
   chat: '/chat',
   help: '/help',
+  pricing: '/pricing',
   settings: '/settings',
   home: '/',
   login: '/login',
@@ -65,6 +67,7 @@ export const PAGE_PATHS: Record<Page, string> = {
   markets: ROUTES.markets,
   chat: ROUTES.chat,
   faq: ROUTES.help,
+  pricing: ROUTES.pricing,
   login: ROUTES.login,
   register: ROUTES.register,
 }
@@ -140,6 +143,8 @@ function getCurrentPageForPathExact(pathname: string): Page | undefined {
       return 'strategy-market'
     case ROUTES.chat:
       return 'chat'
+    case ROUTES.pricing:
+      return 'pricing'
     case ROUTES.help:
     case ROUTES.legacyFaq:
       return 'faq'

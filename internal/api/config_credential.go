@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,12 +11,15 @@ import (
 	"time"
 
 	"strand/internal/mcp"
+	"strand/internal/planning"
+	"strand/internal/planning/live"
 	"strand/internal/security"
 	"strand/internal/store"
 	"strand/internal/trader/aster"
 	"strand/internal/trader/binance"
 	"strand/internal/trader/bitget"
 	"strand/internal/trader/bybit"
+	"strand/internal/trader/execution"
 	"strand/internal/trader/gate"
 	"strand/internal/trader/hyperliquid"
 	"strand/internal/trader/indodax"
@@ -361,6 +365,41 @@ func testExchangeCredentials(in exchangeCredentialInput) error {
 		return fmt.Errorf("exchange connection failed: %w", err)
 	}
 	return nil
+}
+
+// buildPlanningBroker returns a live.Broker and account lease key for Trade execution.
+func buildPlanningBroker(st *store.Store, userID, exchangeID string) (live.Broker, string, error) {
+	if st == nil {
+		return nil, "", fmt.Errorf("store unavailable")
+	}
+	ex, err := st.Exchange().GetByID(userID, exchangeID)
+	if err != nil || ex == nil {
+		return nil, "", fmt.Errorf("exchange account not found")
+	}
+	switch strings.ToLower(strings.TrimSpace(ex.ExchangeType)) {
+	case "binance", "okx", "bitget", "hyperliquid":
+	default:
+		return nil, "", fmt.Errorf("live planning execution supports binance, okx, bitget, hyperliquid; got %s", ex.ExchangeType)
+	}
+	accountKey := planning.AccountIdentity(ex.ExchangeType, string(ex.APIKey), ex.HyperliquidWalletAddr)
+	in := exchangeCredentialFromStore(userID, ex)
+	tr, err := buildCredentialExchangeTrader(in)
+	if err != nil {
+		return nil, "", err
+	}
+	// Prefer a clock-calibrated Binance client for signed planning submits.
+	if strings.EqualFold(ex.ExchangeType, "binance") {
+		bt, err := binance.NewAccountTrader(context.Background(), in.APIKey, in.SecretKey, userID)
+		if err != nil {
+			return nil, "", err
+		}
+		return live.AdaptTrader(bt), accountKey, nil
+	}
+	exec, ok := tr.(execution.Trader)
+	if !ok {
+		return nil, "", fmt.Errorf("exchange %s does not support planning execution", ex.ExchangeType)
+	}
+	return live.AdaptTrader(exec), accountKey, nil
 }
 
 func exchangeCredentialFromStore(userID string, ex *store.Exchange) exchangeCredentialInput {

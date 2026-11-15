@@ -20,8 +20,14 @@ import {
   ensureClaw402Strategy,
   launchAutopilot,
 } from '../../lib/launch/launchAutopilot'
-import { runLaunchPreflight } from '../../lib/launch/preflight'
-import type { LaunchPreflightResult } from '../../lib/launch/types'
+import {
+  checkIsPassing,
+  failedLaunchChecks,
+  primaryFailingExchangeId,
+  runLaunchPreflight,
+  setupTargetForCheck,
+} from '../../lib/launch/preflight'
+import type { LaunchCheck, LaunchPreflightResult } from '../../lib/launch/types'
 import {
   isHyperliquidExchange,
   pickTradingExchange,
@@ -195,8 +201,9 @@ export function AutopilotLaunchPanel({
     feeFundsCheck?.actual ??
     parseNumber(claw402Model?.balanceUsdc || wallet?.balance_usdc)
   const minAIFeeUSDC = preflight?.min_ai_fee_usdc ?? MIN_AI_FEE_USDC
+  // Only ok (or skipped for non-Claw402) counts as ready — never warning.
   const feeReady = feeFundsCheck
-    ? feeFundsCheck.status !== 'failed' && Boolean(feeWalletAddress)
+    ? checkIsPassing(feeFundsCheck) && Boolean(feeWalletAddress)
     : Boolean(feeWalletAddress) && feeWalletBalance >= minAIFeeUSDC
 
   // A stored builder-approved flag is not proof that this saved signing agent
@@ -247,14 +254,12 @@ export function AutopilotLaunchPanel({
   const accountCheck = preflightCheck('exchange_account')
   const tradingFundsCheck = preflightCheck('exchange_funds')
   const tradeAuthCheck = preflightCheck('exchange_trade_auth')
-  // CEX: require live preflight account ok + trade-auth not failed (not just keys on file).
+  // CEX: require live preflight account + trade-auth ok (keys on file alone is not enough).
   const cexConnectedStrict =
     Boolean(launchExchange) &&
     (preflight
       ? accountCheck?.status === 'ok' &&
-        (tradeAuthCheck == null ||
-          tradeAuthCheck.status === 'ok' ||
-          tradeAuthCheck.status === 'skipped')
+        (tradeAuthCheck == null || checkIsPassing(tradeAuthCheck))
       : exchangeState?.status === 'ok')
   const exchangeConnected = launchIsHyperliquid
     ? hyperliquidConnected
@@ -266,7 +271,7 @@ export function AutopilotLaunchPanel({
   const tradingBalanceReady =
     exchangeConnected &&
     (accountCheck && tradingFundsCheck
-      ? accountCheck.status === 'ok' && tradingFundsCheck.status !== 'failed'
+      ? accountCheck.status === 'ok' && tradingFundsCheck.status === 'ok'
       : exchangeState?.status === 'ok' && tradingBalance >= minTradingUSDC)
 
   const autopilotTrader = useMemo(
@@ -280,7 +285,45 @@ export function AutopilotLaunchPanel({
     [traders]
   )
 
-  const allReady = feeReady && exchangeConnected && tradingBalanceReady
+  const allReady =
+    feeReady &&
+    exchangeConnected &&
+    tradingBalanceReady &&
+    (preflight == null || preflight.ready)
+
+  const failingChecks = preflight ? failedLaunchChecks(preflight) : []
+
+  const applySetupTarget = (
+    target: ReturnType<typeof setupTargetForCheck>,
+    exchangeId?: string | null
+  ) => {
+    if (target === 'claw402') {
+      onOpenClaw402Config?.()
+      navigate(`${ROUTES.welcome}?deposit=1`)
+      return
+    }
+    if (target === 'hyperliquid') {
+      onOpenHyperliquidConfig?.()
+      document
+        .getElementById('hyperliquid-quick-connect')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+    if (target === 'hyperliquid-funds') {
+      document
+        .getElementById('autopilot-launch-panel')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      window.open('https://app.hyperliquid.xyz/', '_blank', 'noopener')
+      return
+    }
+    if (target === 'exchange') {
+      onOpenExchangeConfig?.(exchangeId ?? launchExchange?.id)
+    }
+  }
+
+  const fixCheck = (check: LaunchCheck) => {
+    applySetupTarget(setupTargetForCheck(check), check.exchange_id)
+  }
 
   const loadWallet = async () => {
     setWalletLoading(true)
@@ -321,21 +364,12 @@ export function AutopilotLaunchPanel({
         toast.error(outcome.message)
         if (outcome.kind === 'preflight') {
           setPreflight(outcome.preflight)
-        }
-        if (outcome.kind !== 'error') {
-          if (outcome.setupTarget === 'claw402') {
-            onOpenClaw402Config?.()
-          } else if (outcome.setupTarget === 'hyperliquid') {
-            onOpenHyperliquidConfig?.()
-          } else if (outcome.setupTarget === 'exchange') {
-            const exchangeId =
-              outcome.kind === 'preflight'
-                ? outcome.preflight.checks.find(
-                    (c) => c.status === 'failed' && c.exchange_id
-                  )?.exchange_id
-                : null
-            onOpenExchangeConfig?.(exchangeId)
-          }
+          applySetupTarget(
+            outcome.setupTarget,
+            primaryFailingExchangeId(outcome.preflight)
+          )
+        } else if (outcome.kind === 'setup') {
+          applySetupTarget(outcome.setupTarget)
         }
         await refreshEverything()
         return
@@ -434,8 +468,8 @@ export function AutopilotLaunchPanel({
           : 'Approve Strand once with your crypto wallet (Rabby or MetaMask). This lets the AI place trades for you — it can never withdraw your money.'
         : launchExchange
           ? isZh
-            ? 'API 密钥（及所需 IP 白名单）已登记。启动前服务器会再次校验权限与余额。'
-            : 'API keys (and IP whitelist if required) are already on file. Server preflight will re-check permissions and balance before start.'
+            ? 'API 密钥（及所需 IP 白名单）须通过服务器探测。权限失败时请检查白名单与交易权限。'
+            : 'API keys (and IP whitelist if required) must pass the server probe. On permission failures, fix allowlist / trade rights.'
           : isZh
             ? '连接 Hyperliquid（钱包授权）或添加 CEX API 账户（币安 / Bybit / OKX…）。'
             : 'Connect Hyperliquid (wallet authorize) or add a CEX API account (Binance / Bybit / OKX…).',
@@ -455,9 +489,20 @@ export function AutopilotLaunchPanel({
             ? '几次点击 + 3 次钱包签名'
             : 'A few clicks + 3 wallet signatures'
         : launchExchange
-          ? isZh
-            ? `${launchExchange.exchange_type} · 凭证已就绪`
-            : `${launchExchange.exchange_type} · credentials present`
+          ? exchangeConnected
+            ? isZh
+              ? `${launchExchange.exchange_type} · 账户与交易权限已通过`
+              : `${launchExchange.exchange_type} · account and trade auth verified`
+            : `${launchExchange.exchange_type} · ${
+                tradeAuthCheck?.status === 'failed' ||
+                accountCheck?.status === 'failed'
+                  ? tradeAuthCheck?.message ||
+                    accountCheck?.message ||
+                    (isZh ? '探测未通过' : 'probe failed')
+                  : isZh
+                    ? '等待服务器探测'
+                    : 'waiting for server probe'
+              }`
           : isZh
             ? '需要 Hyperliquid 或 CEX 凭证'
             : 'Hyperliquid or CEX credentials required',
@@ -677,6 +722,35 @@ export function AutopilotLaunchPanel({
             </div>
           </div>
 
+          {failingChecks.length > 0 && (
+            <div className="mb-4 rounded-lg border border-strand-danger/30 bg-strand-danger/10 p-4">
+              <div className="mb-2 text-sm font-semibold text-strand-text">
+                {isZh ? '启动前需修复' : 'Fix before launch'}
+              </div>
+              <ul className="space-y-2">
+                {failingChecks.map((check) => (
+                  <li
+                    key={check.id + (check.code || '')}
+                    className="flex flex-wrap items-start justify-between gap-2 text-xs leading-5 text-strand-text-muted"
+                  >
+                    <span className="min-w-0 flex-1">
+                      {check.message || check.id}
+                    </span>
+                    {setupTargetForCheck(check) && (
+                      <button
+                        type="button"
+                        onClick={() => fixCheck(check)}
+                        className="shrink-0 font-semibold text-strand-gold hover:text-strand-accent"
+                      >
+                        {isZh ? '去修复' : 'Fix'}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="grid gap-3 md:grid-cols-2">
             {steps.map((step, index) => (
               <div
@@ -772,14 +846,26 @@ export function AutopilotLaunchPanel({
                     : 'Finish API keys and IP allowlist'}
               </div>
               <p className="mt-2 text-xs leading-5 text-strand-text-muted">
-                {isZh
-                  ? '启动前会再次探测余额与交易权限。若失败，会打开对应交易所配置。'
-                  : 'Preflight re-checks balance and trade auth before start. Failures deep-link into that exchange’s settings.'}
+                {accountCheck?.status === 'failed' ||
+                tradeAuthCheck?.status === 'failed'
+                  ? accountCheck?.message ||
+                    tradeAuthCheck?.message ||
+                    (isZh
+                      ? '服务器探测未通过，请修复后再启动。'
+                      : 'Server probe failed — fix before launch.')
+                  : isZh
+                    ? '启动前会再次探测余额与交易权限。若失败，会打开对应交易所配置。'
+                    : 'Preflight re-checks balance and trade auth before start. Failures deep-link into that exchange’s settings.'}
               </p>
               <div className="mt-3 font-mono text-xs text-strand-gold/90">
                 {launchExchange.exchange_type}
-                {exchangeState?.status
-                  ? ` · ${exchangeState.status}`
+                {accountCheck?.status
+                  ? ` · account ${accountCheck.status}`
+                  : exchangeState?.status
+                    ? ` · ${exchangeState.status}`
+                    : ''}
+                {tradeAuthCheck?.status
+                  ? ` · auth ${tradeAuthCheck.status}`
                   : ''}
                 {tradingBalance > 0
                   ? ` · ${formatUSDC(tradingBalance)} avail`

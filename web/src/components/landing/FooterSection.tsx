@@ -16,6 +16,7 @@ export default function FooterSection({ language }: FooterSectionProps) {
     ],
     resources: [
       { name: t('marketsNav', language), href: '/markets', external: false },
+      { name: t('pricingNav', language), href: '/pricing', external: false },
       { name: t('helpNav', language), href: '/help', external: false },
       { name: t('leaderboardNav', language), href: '/leaderboard', external: false },
       { name: 'Source', href: OFFICIAL_LINKS.github, external: true },

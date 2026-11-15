@@ -54,6 +54,23 @@ export function describeLaunchFailures(result: LaunchPreflightResult): string {
     .join(' ')
 }
 
+/** True when the panel may treat a step as green (ok / skipped only). */
+export function checkIsPassing(check: LaunchCheck | undefined): boolean {
+  if (!check) return false
+  return check.status === 'ok' || check.status === 'skipped'
+}
+
+/** Apply a preflight failure's setup target (shared by panel / list / studio). */
+export function resolveSetupAction(result: LaunchPreflightResult): {
+  target: SetupTarget | null
+  exchangeId: string | null
+} {
+  return {
+    target: primarySetupTarget(result),
+    exchangeId: primaryFailingExchangeId(result),
+  }
+}
+
 function isHyperliquidVenue(check: LaunchCheck): boolean {
   const t = (check.exchange_type || '').toLowerCase()
   const id = (check.exchange_id || '').toLowerCase()

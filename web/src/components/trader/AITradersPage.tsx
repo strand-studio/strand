@@ -29,6 +29,7 @@ import './ConfigPage.css'
 import { confirmToast } from '../../lib/notify'
 import { toast } from 'sonner'
 import {
+  describeLaunchFailures,
   primaryFailingExchangeId,
   primarySetupTarget,
 } from '../../lib/launch/preflight'
@@ -339,17 +340,17 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
 
       await mutateTraders()
     } catch (error) {
-      // Prefer server reason (preflight / load / runtime) over a generic toast.
+      // Prefer concrete server / preflight reason over a generic i18n cover.
       if (error instanceof ApiError) {
-        const keyed =
-          error.errorKey && t(error.errorKey, language) !== error.errorKey
-            ? t(error.errorKey, language)
-            : ''
-        toast.error(keyed || error.message || t('operationFailed', language))
         if (error.errorKey === 'trader.start.preflight_failed') {
           const preflight = error.errorData?.preflight as
             | LaunchPreflightResult
             | undefined
+          const detail =
+            (preflight && describeLaunchFailures(preflight)) ||
+            error.message ||
+            t('trader.start.preflight_failed', language)
+          toast.error(detail)
           if (preflight) {
             const target = primarySetupTarget(preflight)
             if (target === 'claw402') {
@@ -365,7 +366,13 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
               setSearchParams(next)
             }
           }
+          return
         }
+        const keyed =
+          error.errorKey && t(error.errorKey, language) !== error.errorKey
+            ? t(error.errorKey, language)
+            : ''
+        toast.error(keyed || error.message || t('operationFailed', language))
         return
       }
       if (error instanceof Error && error.message) {

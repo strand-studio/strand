@@ -18,23 +18,24 @@ type Store struct {
 	driver *DBDriver // Database driver for abstraction (legacy)
 
 	// Sub-stores (lazy initialization)
-	user           *UserStore
-	aiModel        *AIModelStore
-	exchange       *ExchangeStore
-	trader         *TraderStore
-	decision       *DecisionStore
-	position       *PositionStore
-	strategy       *StrategyStore
-	equity         *EquityStore
-	order          *OrderStore
-	grid           *GridStore
-	aiCharge             *AIChargeStore
-	telegramConfig       TelegramConfigStore
-	chatSessions         *ChatSessionStore
-	notifyChannels       *NotifyChannelStore
-	competitionSettings  *CompetitionSettingsStore
-	messaging            *MessagingStore
-	resources            *ResourceStore
+	user                  *UserStore
+	aiModel               *AIModelStore
+	exchange              *ExchangeStore
+	trader                *TraderStore
+	decision              *DecisionStore
+	position              *PositionStore
+	strategy              *StrategyStore
+	equity                *EquityStore
+	order                 *OrderStore
+	grid                  *GridStore
+	aiCharge              *AIChargeStore
+	telegramConfig        TelegramConfigStore
+	chatSessions          *ChatSessionStore
+	planningConversations *PlanningConversationStore
+	notifyChannels        *NotifyChannelStore
+	competitionSettings   *CompetitionSettingsStore
+	messaging             *MessagingStore
+	resources             *ResourceStore
 
 	mu sync.RWMutex
 }
@@ -165,6 +166,9 @@ func (s *Store) initTables() error {
 	if err := s.ChatSessions().initTables(); err != nil {
 		return fmt.Errorf("failed to initialize chat session tables: %w", err)
 	}
+	if err := s.PlanningConversations().initTables(); err != nil {
+		return fmt.Errorf("failed to initialize planning conversation tables: %w", err)
+	}
 	if err := s.NotifyChannels().initTables(); err != nil {
 		return fmt.Errorf("failed to initialize notify channel tables: %w", err)
 	}
@@ -176,6 +180,9 @@ func (s *Store) initTables() error {
 	}
 	if err := s.Resources().initTables(); err != nil {
 		return fmt.Errorf("failed to initialize resource health tables: %w", err)
+	}
+	if err := s.initPlanningLiveTables(); err != nil {
+		return fmt.Errorf("failed to initialize planning live tables: %w", err)
 	}
 	return nil
 }
@@ -327,6 +334,16 @@ func (s *Store) ChatSessions() *ChatSessionStore {
 		s.chatSessions = NewChatSessionStore(s.gdb)
 	}
 	return s.chatSessions
+}
+
+// PlanningConversations persists Trade assistant threads.
+func (s *Store) PlanningConversations() *PlanningConversationStore {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.planningConversations == nil {
+		s.planningConversations = NewPlanningConversationStore(s.gdb)
+	}
+	return s.planningConversations
 }
 
 // NotifyChannels stores Discord / Slack console bindings.

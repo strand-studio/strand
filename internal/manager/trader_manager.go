@@ -92,6 +92,69 @@ func (tm *TraderManager) GetAllTraders() map[string]*trader.AutoTrader {
 	return result
 }
 
+// TelegramStatusText builds an ops-oriented /status reply for running Autopilots.
+// Prefer this over DB IsRunning flags so pause / Safe Mode / hard gates show up.
+func (tm *TraderManager) TelegramStatusText() string {
+	if tm == nil {
+		return ""
+	}
+	tm.mu.RLock()
+	list := make([]*trader.AutoTrader, 0, len(tm.traders))
+	for _, at := range tm.traders {
+		if at == nil {
+			continue
+		}
+		list = append(list, at)
+	}
+	tm.mu.RUnlock()
+
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].GetName() < list[j].GetName()
+	})
+
+	var lines []string
+	running := 0
+	for _, at := range list {
+		st := at.GetStatus()
+		isRunning, _ := st["is_running"].(bool)
+		if !isRunning {
+			continue
+		}
+		running++
+		equity, equityOK := 0.0, false
+		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			info, err := at.GetAccountInfo()
+			if err == nil && info != nil {
+				if eq, ok := info["total_equity"].(float64); ok && eq > 0 {
+					equity, equityOK = eq, true
+				} else if eq, ok := info["totalEquity"].(float64); ok && eq > 0 {
+					equity, equityOK = eq, true
+				}
+			}
+		}()
+		select {
+		case <-done:
+		case <-ctx.Done():
+		}
+		cancel()
+		lines = append(lines, trader.FormatOpsStatusLine(st, equity, equityOK))
+		if len(lines) >= 8 {
+			break
+		}
+	}
+	if running == 0 {
+		return ""
+	}
+	out := fmt.Sprintf("Strand is online.\n%d Autopilot(s) running:\n%s", running, strings.Join(lines, "\n"))
+	if running > len(lines) {
+		out += fmt.Sprintf("\n…and %d more", running-len(lines))
+	}
+	return out
+}
+
 // GetTraderIDs retrieves all trader IDs
 func (tm *TraderManager) GetTraderIDs() []string {
 	tm.mu.RLock()

@@ -109,6 +109,7 @@
       this.plotVersion = 0;
       this.candles = [];
       this.priceLines = [];
+      this.aiLines = [];
       this.chart = null;
       this.series = null;
       this.LWC = null;
@@ -532,8 +533,66 @@
       }
     }
 
-    async draw() {
-      /* AI drawing overlays require TradingView shapes; price lines cover plans. */
+    clearAILines() {
+      if (!this.series) {
+        this.aiLines = [];
+        return;
+      }
+      for (const line of this.aiLines) {
+        try {
+          this.series.removePriceLine(line);
+        } catch {
+          /* ignore */
+        }
+      }
+      this.aiLines = [];
+    }
+
+    async draw(drawings = [], source = "manual") {
+      await this.whenReady();
+      if (this.disposed || !this.series) return;
+      this.clearAILines();
+      const rows = Array.isArray(drawings) ? drawings.slice(0, 8) : [];
+      for (const d of rows) {
+        if (d?.kind && d.kind !== "horizontal_line") continue;
+        const price = Number(d?.points?.[0]?.price);
+        if (!Number.isFinite(price) || price <= 0) continue;
+        const label = String(d.label || "AI");
+        const support = /support|\bS[1-9]\b/i.test(label);
+        const resistance = /resistance|\bR[1-9]\b/i.test(label);
+        const color = support
+          ? "#2E8B57"
+          : resistance
+            ? "#D6433A"
+            : source === "ai"
+              ? "#3575a8"
+              : "#9b6a14";
+        try {
+          const line = this.series.createPriceLine({
+            price,
+            color,
+            lineWidth: 1,
+            lineStyle: 2,
+            axisLabelVisible: true,
+            title: label.slice(0, 18),
+          });
+          this.aiLines.push(line);
+        } catch {
+          /* ignore overlay failures */
+        }
+      }
+      try {
+        this.onAnnotations({
+          total: rows.length,
+          visible: this.aiLines.length,
+          expanded: false,
+          shown: this.aiLines.length > 0,
+          comparing: false,
+          items: rows,
+        });
+      } catch {
+        /* optional callback */
+      }
     }
 
     dispose() {
@@ -542,6 +601,7 @@
       if (this._themeObserver) this._themeObserver.disconnect();
       if (this._resizeObserver) this._resizeObserver.disconnect();
       this.clearPriceLines();
+      this.clearAILines();
       try {
         this.chart?.remove();
       } catch {

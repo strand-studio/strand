@@ -297,9 +297,10 @@ func (s *Service) runLaunchPreflight(userID, aiModelID, exchangeID, strategyID s
 				actual, _ = strconv.ParseFloat(strings.TrimSpace(balStr), 64)
 			}
 			if balErr != nil {
+				// Block launch: unverified fee balance is a common first-run failure.
 				result.Checks = append(result.Checks, launchCheck{
-					ID: "ai_wallet_funds", Status: "warning", Code: "balance_unavailable",
-					Message:  "Could not read Base USDC balance; deposits may still be pending",
+					ID: "ai_wallet_funds", Status: "failed", Code: "balance_unavailable",
+					Message:  "Could not read Base USDC balance; confirm the AI fee wallet has ≥$1 USDC on Base, then refresh",
 					Required: minAIFeeUSDC, Actual: actual, Asset: "USDC", Address: addr,
 				})
 			} else if actual < minAIFeeUSDC {
@@ -471,9 +472,10 @@ func (s *Service) probeExchangeTradeAuth(userID string, ex *store.Exchange) laun
 		check.Message = "Trading authorization confirmed"
 		return check
 	case <-time.After(accountProbeTO):
-		check.Status = "warning"
+		// Block launch: unknown auth is worse than a false-green start.
+		check.Status = "failed"
 		check.Code = "timeout"
-		check.Message = "Trading authorization probe timed out; start may still fail if agent is unauthorized"
+		check.Message = "Trading authorization probe timed out; reconnect the exchange or agent and try again"
 		return check
 	}
 }

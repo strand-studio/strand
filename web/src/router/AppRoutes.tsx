@@ -33,6 +33,7 @@ import TerminalDashboard from '../components/terminal/TerminalDashboard'
 import { useSystemConfig } from '../hooks/useSystemConfig'
 import { SetupPage } from '../components/modals/SetupPage'
 import { LandingPage } from '../pages/LandingPage'
+import { PricingPage } from '../pages/PricingPage'
 import { useAuth } from '../contexts/AuthContext'
 import { TradingPlanningPage } from '../pages/TradingPlanningPage'
 import { AIChatPage } from '../pages/AIChatPage'
@@ -458,6 +459,7 @@ export function AppRoutes() {
         />
 
         <Route path={ROUTES.home} element={<LandingPage />} />
+        <Route path={ROUTES.pricing} element={<PricingPage />} />
         <Route path={ROUTES.login} element={<LoginPage />} />
         <Route path={ROUTES.register} element={<RegisterPage />} />
         <Route path={ROUTES.resetPassword} element={<ResetPasswordPage />} />

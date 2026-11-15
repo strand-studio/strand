@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LaunchPreflightResult } from './types'
 import {
+  checkIsPassing,
   primaryFailingExchangeId,
   primarySetupTarget,
   setupQueryForPreflight,
@@ -18,6 +19,16 @@ function result(
     checked_at: new Date().toISOString(),
   }
 }
+
+describe('checkIsPassing', () => {
+  it('treats only ok and skipped as passing', () => {
+    expect(checkIsPassing({ id: 'x', status: 'ok' })).toBe(true)
+    expect(checkIsPassing({ id: 'x', status: 'skipped' })).toBe(true)
+    expect(checkIsPassing({ id: 'x', status: 'warning' })).toBe(false)
+    expect(checkIsPassing({ id: 'x', status: 'failed' })).toBe(false)
+    expect(checkIsPassing(undefined)).toBe(false)
+  })
+})
 
 describe('setupTargetForCheck', () => {
   it('routes Hyperliquid trade-auth to hyperliquid', () => {

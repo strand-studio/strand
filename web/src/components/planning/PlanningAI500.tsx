@@ -69,7 +69,13 @@ export function PlanningAI500({
     <section className="planning-ai500" aria-label="Binance AI500 markets">
       <div>
         <b>AI500</b>
-        <small>Claw402 paid data · cached 5 min</small>
+        <small>
+          {board?.source === 'binance_volume_proxy'
+            ? 'Temporary Binance volume leaders · AI500 paid feed not wired'
+            : board?.source === 'unavailable'
+              ? 'AI500 unavailable'
+              : 'Claw402 paid data · cached 5 min'}
+        </small>
         <small>Long entries · market or pullback opportunities</small>
         <input
           aria-label="Search AI500"

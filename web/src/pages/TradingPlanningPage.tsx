@@ -348,6 +348,49 @@ export function TradingPlanningPage() {
       chart.current = null
     }
   }, [reload, refreshHistory])
+  // Actively refresh live runs with the exchange (state poll alone is stale).
+  useEffect(() => {
+    const live = data.runs.filter((r) =>
+      [
+        'starting',
+        'running',
+        'position_open',
+        'stopping',
+        'needs_attention',
+      ].includes(r.state)
+    )
+    if (!live.length) return
+    let cancelled = false
+    const refreshLive = async () => {
+      for (const r of live) {
+        if (cancelled) return
+        try {
+          if (r.state === 'needs_attention') {
+            await planningAPI('reconcile', {
+              id: r.id,
+              hash: r.approval_hash,
+            })
+          } else {
+            await planningAPI('check-status', { id: r.id })
+          }
+        } catch {
+          /* keep polling; UI shows last known error */
+        }
+      }
+      if (!cancelled) await reload().catch(() => {})
+    }
+    const timer = window.setInterval(() => void refreshLive(), 8000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [
+    reload,
+    data.runs
+      .map((r) => r.id + ':' + r.state)
+      .sort()
+      .join('|'),
+  ])
   useEffect(() => {
     let cancelled = false
     let chartFailure = ''
@@ -891,6 +934,7 @@ export function TradingPlanningPage() {
         plan_id: locked.id,
         hash: locked.hash,
         confirmed: true,
+        exchange_id: exchangeID,
         ...(reviewReplacement
           ? {
               replace_approval_id: reviewReplacement.id,
@@ -1807,12 +1851,28 @@ export function TradingPlanningPage() {
                   !['completed', 'cancelled', 'expired'].includes(
                     run.state
                   ) && (
-                    <button
-                      disabled={busy}
-                      onClick={() => runAction('stop', run)}
-                    >
-                      Stop remaining entries
-                    </button>
+                    <>
+                      {(run.state === 'needs_attention' ||
+                        run.orders?.some(
+                          (o) =>
+                            !o.order_id &&
+                            (o.status === 'UNKNOWN' ||
+                              /unconfirmed/i.test(o.status || ''))
+                        )) && (
+                        <button
+                          disabled={busy}
+                          onClick={() => runAction('reconcile', run)}
+                        >
+                          Reconcile with exchange
+                        </button>
+                      )}
+                      <button
+                        disabled={busy}
+                        onClick={() => runAction('stop', run)}
+                      >
+                        Stop remaining entries
+                      </button>
+                    </>
                   )
                 )}
                 <small>
@@ -1866,6 +1926,7 @@ export function TradingPlanningPage() {
           onRefresh={reload}
           onObserve={setObservation}
           onCheck={checkPreviousTrade}
+          onReconcile={(r) => runAction('reconcile', r)}
         />
         <details className="planning-tools">
           <summary>
