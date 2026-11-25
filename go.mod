@@ -1,6 +1,6 @@
 module strand
 
-go 1.26.0
+go 1.27.4
 
 require (
 	cloud.google.com/go/pubsub/v2 v2.8.0
